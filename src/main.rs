@@ -5,10 +5,19 @@ mod codegen;
 
 use lexer::lex;
 use parser::Parser;
-use ast::{Expr, BinOp};
+use ast::Expr;
+use std::path::Path;
+use crate::ast::BinOp;
 
 fn main() {
-    let source = std::fs::read_to_string("examples/sample.spp").unwrap();
+    let source = match std::fs::read_to_string("examples/sample.spp") {
+        Ok(content) => content,
+        Err(_) => {
+            eprintln!("Error: The file 'examples/sample.spp' could not be found.");
+            return;
+        }
+    };
+
     let tokens = lex(&source);
     let mut parser = Parser::new(tokens);
     let mut exprs = Vec::new();
@@ -24,15 +33,20 @@ fn main() {
         }
     }
 
-    // Evaluate each expression in order
-    for expr in exprs {
+    // Check if directory exists before generating file
+    let output_path = Path::new("build");
+    if !output_path.exists() {
+        eprintln!("Error: Output directory 'build' does not exist.");
+        return;
+    }
+
+    // Generate NASM code for all expressions
+    codegen::generate_nasm(&exprs, Path::new("build/out.asm"));
+
+    // Evaluate each expression in order (for debugging)
+    for expr in &exprs {
         let result = eval(&expr);
         println!("Evaluation result: {}", result);
-        // If an exit expression is encountered, generate the NASM file and exit
-        if let Expr::Exit(_) = expr {
-            codegen::generate_nasm(result, std::path::Path::new("build/out.asm"));
-            break;
-        }
     }
 }
 
@@ -40,7 +54,7 @@ fn eval(expr: &Expr) -> i32 {
     match expr {
         Expr::Number(n) => *n,
         Expr::StringLiteral(s) => {
-            println!("{}", s);
+            println!("{}", s); // Output the string literal
             0
         }
         Expr::BinaryOp { op, left, right } => {

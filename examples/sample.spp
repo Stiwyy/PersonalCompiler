@@ -1,2 +1,3 @@
-console.print("test");
+console.print("Hello World!");
 exit(10);
+console.print("test2");
