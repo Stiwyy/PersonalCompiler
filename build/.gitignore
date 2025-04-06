@@ -1,7 +1,5 @@
-/build/
 /target/
-
+/build/
 Cargo.lock
 *.rs.bk
-
 .idea/
