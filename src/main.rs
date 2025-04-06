@@ -11,19 +11,28 @@ fn main() {
     let source = std::fs::read_to_string("examples/sample.spp").unwrap();
     let tokens = lex(&source);
     let mut parser = Parser::new(tokens);
+    let mut exprs = Vec::new();
 
-    let expr = if let Some(print_expr) = parser.parse_console_print_expr() {
-        print_expr
-    } else if let Some(exit_expr) = parser.parse_exit_expr() {
-        exit_expr
-    } else {
-        panic!("No valid expression found")
-    };
+    // Parse all statements until tokens are exhausted
+    while !parser.is_finished() {
+        if let Some(print_expr) = parser.parse_console_print_expr() {
+            exprs.push(print_expr);
+        } else if let Some(exit_expr) = parser.parse_exit_expr() {
+            exprs.push(exit_expr);
+        } else {
+            panic!("No valid expression found at token position {}", parser.pos());
+        }
+    }
 
-    let result = eval(&expr);
-    println!("Evaluation result: {}", result);
-    if let Expr::Number(n) = expr {
-        codegen::generate_nasm(n, std::path::Path::new("build/out.asm"));
+    // Evaluate each expression in order
+    for expr in exprs {
+        let result = eval(&expr);
+        println!("Evaluation result: {}", result);
+        // If an exit expression is encountered, generate the NASM file and exit
+        if let Expr::Exit(_) = expr {
+            codegen::generate_nasm(result, std::path::Path::new("build/out.asm"));
+            break;
+        }
     }
 }
 
@@ -52,5 +61,6 @@ fn eval(expr: &Expr) -> i32 {
             }
             0
         }
+        Expr::Exit(e) => eval(e),
     }
 }

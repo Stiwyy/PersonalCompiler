@@ -13,6 +13,16 @@ impl Parser {
         Self { tokens, pos: 0 }
     }
 
+    // Public accessor for current position (for error messages)
+    pub fn pos(&self) -> usize {
+        self.pos
+    }
+
+    // Returns true if all tokens have been consumed
+    pub fn is_finished(&self) -> bool {
+        self.pos >= self.tokens.len()
+    }
+
     // Returns the current token without advancing the position
     fn peek(&self) -> Option<&Token> {
         self.tokens.get(self.pos)
@@ -20,7 +30,6 @@ impl Parser {
 
     // Consumes the current token and advances to the next one
     fn eat(&mut self) -> Option<Token> {
-        // Gets the current token and clones it
         let tok = self.tokens.get(self.pos).cloned();
         self.pos += 1;
         tok
@@ -28,65 +37,96 @@ impl Parser {
 
     // Parsing a console.print expression (console.print("test");)
     pub fn parse_console_print_expr(&mut self) -> Option<Expr> {
-        match self.eat() {
-            Some(Token::Ident(ref s)) if s == "console" => {
-                match self.eat() {
-                    Some(Token::Dot) => {
-                        match self.eat() {
-                            Some(Token::Print) => {
-                                match self.eat() {
-                                    Some(Token::LParen) => {
-                                        // Parses the expression inside print()
-                                        let expr = self.parse_expr()?;
-                                        match self.eat() {
-                                            Some(Token::RParen) => {
-                                                match self.eat() {
-                                                    // Returns the parsed expression if a semicolon is found
-                                                    Some(Token::Semicolon) => Some(Expr::Print(Box::new(expr))),
-                                                    _ => None, // Missing semicolon
-                                                }
-                                            }
-                                            _ => None, // Missing closing parenthesis
-                                        }
-                                    }
-                                    _ => None, // Missing opening parenthesis
-                                }
-                            }
-                            _ => None, // Not a print keyword
-                        }
-                    }
-                    _ => None, // Missing dot after console
-                }
+        // Peek without consuming: check if the next token is Ident("console")
+        if let Some(Token::Ident(s)) = self.peek() {
+            if s != "console" {
+                return None;
             }
-            _ => None, // Not a console.print expression
+        } else {
+            return None;
         }
+        // Now that we know it's a console.print, consume "console"
+        self.eat();
+
+        // Next, expect a Dot token
+        if let Some(Token::Dot) = self.peek() {
+            self.eat();
+        } else {
+            return None;
+        }
+
+        // Next, expect the Print keyword
+        if let Some(Token::Print) = self.peek() {
+            self.eat();
+        } else {
+            return None;
+        }
+
+        // Next, expect an opening parenthesis
+        if let Some(Token::LParen) = self.peek() {
+            self.eat();
+        } else {
+            return None;
+        }
+
+        // Parse the expression inside print()
+        let expr = self.parse_expr()?;
+
+        // Expect a closing parenthesis
+        if let Some(Token::RParen) = self.peek() {
+            self.eat();
+        } else {
+            return None;
+        }
+
+        // Expect a semicolon
+        if let Some(Token::Semicolon) = self.peek() {
+            self.eat();
+            return Some(Expr::Print(Box::new(expr)));
+        }
+
+        None
     }
 
     // Parsing an exit(...) expression
     pub fn parse_exit_expr(&mut self) -> Option<Expr> {
-        match self.eat() {
-            Some(Token::Ident(ref s)) if s == "exit" => {
-                match self.eat() {
-                    Some(Token::LParen) => {
-                        // Parses the expression inside exit()
-                        let expr = self.parse_expr()?;
-                        match self.eat() {
-                            Some(Token::RParen) => {
-                                match self.eat() {
-                                    // Returns the parsed expression if a semicolon is found
-                                    Some(Token::Semicolon) => Some(expr),
-                                    _ => None  // No semicolon -> invalid expression
-                                }
-                            }
-                            _ => None,  // No closing parenthesis -> invalid expression
-                        }
-                    }
-                    _ => None,  // No opening parenthesis -> invalid expression
-                }
+        // Peek without consuming: check if the next token is Ident("exit")
+        if let Some(Token::Ident(s)) = self.peek() {
+            if s != "exit" {
+                return None;
             }
-            _ => None,  // Not an exit expression
+        } else {
+            return None;
         }
+        // Consume "exit"
+        self.eat();
+
+        // Expect an opening parenthesis
+        if let Some(Token::LParen) = self.peek() {
+            self.eat();
+        } else {
+            return None;
+        }
+
+        // Parse the expression inside exit()
+        let expr = self.parse_expr()?;
+
+        // Expect a closing parenthesis
+        if let Some(Token::RParen) = self.peek() {
+            self.eat();
+        } else {
+            return None;
+        }
+
+        // Expect a semicolon
+        if let Some(Token::Semicolon) = self.peek() {
+            self.eat();
+            return Some(Expr::Exit(Box::new(expr)));
+        }
+
+        None
     }
+
 
     // Parsing a general expression
     fn parse_expr(&mut self) -> Option<Expr> {
@@ -95,7 +135,6 @@ impl Parser {
 
     // Parsing terms (multiplication, division, addition, subtraction)
     fn parse_term(&mut self) -> Option<Expr> {
-        // Parse the first factor
         let mut node = self.parse_factor()?;
 
         while let Some(op) = self.peek() {
@@ -107,7 +146,6 @@ impl Parser {
                         _ => unreachable!(),
                     };
                     let right = self.parse_factor()?;
-                    // Creates a binary operand
                     node = Expr::BinaryOp {
                         op,
                         left: Box::new(node),
@@ -134,7 +172,6 @@ impl Parser {
                         _ => unreachable!(),
                     };
                     let right = self.parse_primary()?;
-                    // Creates a binary operand
                     node = Expr::BinaryOp {
                         op,
                         left: Box::new(node),
@@ -153,14 +190,13 @@ impl Parser {
         match self.eat()? {
             Token::Number(n) => Some(Expr::Number(n)),
             Token::StringLiteral(s) => Some(Expr::StringLiteral(s)),
-            // If it's an opening parenthesis -> parses the expression inside
             Token::LParen => {
                 let expr = self.parse_expr()?;
-                match self.eat()? {
-                    // Returns the parsed expression inside the parentheses
-                    Token::RParen => Some(expr),
-                    // Missing closing parenthesis -> invalid expression
-                    _ => None,
+                if let Some(Token::RParen) = self.peek() {
+                    self.eat();
+                    Some(expr)
+                } else {
+                    None
                 }
             }
             _ => None,

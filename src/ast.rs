@@ -7,7 +7,8 @@ pub enum Expr {
         left: Box<Expr>,
         right: Box<Expr>,
     },
-    Print(Box<Expr>), // Represents a print statement
+    Print(Box<Expr>),
+    Exit(Box<Expr>),
 }
 
 #[derive(Debug)]
