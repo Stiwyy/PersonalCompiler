@@ -1,5 +1,5 @@
 section .data
-str_0: db 'Hello Word!',0
+str_0: db 'Hello World!',0
 
 section .text
 global _start
@@ -10,9 +10,9 @@ mov rbp, rsp
 mov rax, 1
 mov rdi, 1
 mov rsi, str_0
-mov rdx, 11
+mov rdx, 12
 syscall
-mov rax, 0
+mov rax, 10
 mov rdi, rax
 mov rax, 60
 syscall
