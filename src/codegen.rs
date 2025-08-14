@@ -8,7 +8,7 @@ pub fn generate_nasm(exprs: &[Expr], output_path: &Path) -> String {
     let mut data_section = String::new();
     let mut text_section = String::new();
     let mut string_counter = 0;
-    let mut constants = HashMap::new();
+    let mut constants: HashMap<String, i32> = HashMap::new();
 
     // Collect string literals for .data section
     let mut string_labels = Vec::new();

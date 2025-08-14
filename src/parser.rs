@@ -127,12 +127,12 @@ impl Parser {
         None
     }
 
-    pub fn parse_const_declaration(%mut self) -> Option<Expr> {
-        if let Some(Token::Const) = self.peak(){
-            self.eat();
-        } else {
-            return None;
-        }
+	pub fn parse_const_declaration(&mut self) -> Option<Expr> {
+		if let Some(Token::Const) = self.peek() {
+			self.eat();
+		} else {
+			return None;
+		}
 
 		let name = if let Some(Token::Ident(name)) = self.eat() {
 			name
@@ -156,8 +156,7 @@ impl Parser {
 			});
 		}
 		None
-
-    }
+	}
 
 
     // Parsing a general expression
@@ -219,38 +218,39 @@ impl Parser {
 
     // Parsing a primary expression (number, string literal, parenthesis)
     fn parse_primary(&mut self) -> Option<Expr> {
-    match self.peek()? {
-        Token::Number(_) => {
-            if let Token::Number(n) = self.eat()? {
-                Some(Expr::Number(n))
-            } else {
-                None
-            }
-        },
-        Token::StringLiteral(_) => {
-            if let Token::StringLiteral(s) = self.eat()? {
-                Some(Expr::StringLiteral(s))
-            } else {
-                None
-            }
-        },
-        Token::Ident(_) => {
-            if let Token::Ident(name) = self.eat()? {
-                Some(Expr::Variable(name))
-            } else {
-                None
-            }
-        },
-        Token::LParen => {
-            self.eat();
-            let expr = self.parse_expr()?;
-            if let Some(Token::RParen) = self.peek() {
-                self.eat();
-                Some(expr)
-            } else {
-                None
-            }
-        }
-        _ => None,
-    }
+		match self.peek()? {
+			Token::Number(_) => {
+				if let Token::Number(n) = self.eat()? {
+					Some(Expr::Number(n))
+				} else {
+					None
+				}
+			},
+			Token::StringLiteral(_) => {
+				if let Token::StringLiteral(s) = self.eat()? {
+					Some(Expr::StringLiteral(s))
+				} else {
+					None
+				}
+			},
+			Token::Ident(_) => {
+				if let Token::Ident(name) = self.eat()? {
+					Some(Expr::Variable(name))
+				} else {
+					None
+				}
+			},
+			Token::LParen => {
+				self.eat();
+				let expr = self.parse_expr()?;
+				if let Some(Token::RParen) = self.peek() {
+					self.eat();
+					Some(expr)
+				} else {
+					None
+				}
+			}
+			_ => None,
+		}
+	}
 }
