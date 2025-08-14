@@ -1,20 +1,62 @@
+// Mostly AI generated code for NASM assembly generation
 use crate::ast::{Expr, BinOp};
 use std::path::Path;
 use std::fs;
 use std::collections::HashMap;
+
+// Define a comprehensive ConstValue enum
+#[derive(Clone, Debug)]
+pub enum ConstValue {
+    Number(i32),
+    Float(f64),
+    String(String),
+    Boolean(bool),
+    Array(Vec<ConstValue>),
+    Null,
+}
+
+impl std::fmt::Display for ConstValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            ConstValue::Number(n) => write!(f, "{}", n),
+            ConstValue::Float(n) => write!(f, "{}", n),
+            ConstValue::String(s) => write!(f, "{}", s),
+            ConstValue::Boolean(b) => write!(f, "{}", b),
+            ConstValue::Array(arr) => {
+                write!(f, "[")?;
+                for (i, val) in arr.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", val)?;
+                }
+                write!(f, "]")
+            },
+            ConstValue::Null => write!(f, "null"),
+        }
+    }
+}
 
 pub fn generate_nasm(exprs: &[Expr], output_path: &Path) -> String {
     let mut asm = String::new();
     let mut data_section = String::new();
     let mut text_section = String::new();
     let mut string_counter = 0;
-    let mut constants: HashMap<String, i32> = HashMap::new();
+    let mut constants: HashMap<String, ConstValue> = HashMap::new();
 
     // Add digit buffer for number printing
     data_section.push_str("digit_buffer db '00000000000', 10, 0\n");
     
     // Add buffer for string operations
     data_section.push_str("str_buffer times 1024 db 0\n");
+    
+    // Add buffer for boolean printing
+    data_section.push_str("true_str db 'true', 10, 0\n");
+    data_section.push_str("false_str db 'false', 10, 0\n");
+    data_section.push_str("null_str db 'null', 10, 0\n");
+    data_section.push_str("array_open db '[', 0\n");
+    data_section.push_str("array_close db ']', 10, 0\n");
+    data_section.push_str("array_separator db ', ', 0\n");
 
     // Collect string literals for .data section
     let mut string_labels = Vec::new();
@@ -40,9 +82,9 @@ pub fn generate_nasm(exprs: &[Expr], output_path: &Path) -> String {
             Expr::Print(inner) => {
                 match &**inner {
                     Expr::StringLiteral(s) => {
-                        // Find the label for this string - FIX THE COMPARISON HERE
+                        // Find the label for this string
                         let (label, _) = string_labels.iter()
-                            .find(|(_, str)| str == s)  // Changed from *str == s
+                            .find(|(_, str)| str == s)
                             .expect("String not found in data section");
                         // Write syscall to print the string
                         text_section.push_str(&format!("    ; Print: {}\n", s));
@@ -52,21 +94,139 @@ pub fn generate_nasm(exprs: &[Expr], output_path: &Path) -> String {
                         text_section.push_str(&format!("    mov rdx, {}\n", s.len() + 1)); // +1 for newline
                         text_section.push_str("    syscall\n\n");
                     },
+                    Expr::Boolean(b) => {
+                        // Print boolean value
+                        text_section.push_str(&format!("    ; Print boolean: {}\n", b));
+                        text_section.push_str("    mov rax, 1          ; sys_write\n");
+                        text_section.push_str("    mov rdi, 1          ; stdout\n");
+                        if *b {
+                            text_section.push_str("    mov rsi, true_str\n");
+                            text_section.push_str("    mov rdx, 5       ; 'true' + newline\n");
+                        } else {
+                            text_section.push_str("    mov rsi, false_str\n");
+                            text_section.push_str("    mov rdx, 6       ; 'false' + newline\n");
+                        }
+                        text_section.push_str("    syscall\n\n");
+                    },
+                    Expr::Null => {
+                        // Print null value
+                        text_section.push_str("    ; Print null\n");
+                        text_section.push_str("    mov rax, 1          ; sys_write\n");
+                        text_section.push_str("    mov rdi, 1          ; stdout\n");
+                        text_section.push_str("    mov rsi, null_str\n");
+                        text_section.push_str("    mov rdx, 5          ; 'null' + newline\n");
+                        text_section.push_str("    syscall\n\n");
+                    },
+                    Expr::Array(elements) => {
+                        // Print array opening
+                        text_section.push_str("    ; Print array\n");
+                        text_section.push_str("    mov rax, 1          ; sys_write\n");
+                        text_section.push_str("    mov rdi, 1          ; stdout\n");
+                        text_section.push_str("    mov rsi, array_open\n");
+                        text_section.push_str("    mov rdx, 1          ; '['\n");
+                        text_section.push_str("    syscall\n\n");
+                        
+                        // Print each element
+                        for (i, elem) in elements.iter().enumerate() {
+                            // Print element
+                            generate_print_expr(elem, &mut text_section, &constants, &string_labels);
+                            
+                            // Print separator if not last element
+                            if i < elements.len() - 1 {
+                                text_section.push_str("    mov rax, 1          ; sys_write\n");
+                                text_section.push_str("    mov rdi, 1          ; stdout\n");
+                                text_section.push_str("    mov rsi, array_separator\n");
+                                text_section.push_str("    mov rdx, 2          ; ', '\n");
+                                text_section.push_str("    syscall\n\n");
+                            }
+                        }
+                        
+                        // Print array closing
+                        text_section.push_str("    mov rax, 1          ; sys_write\n");
+                        text_section.push_str("    mov rdi, 1          ; stdout\n");
+                        text_section.push_str("    mov rsi, array_close\n");
+                        text_section.push_str("    mov rdx, 2          ; ']' + newline\n");
+                        text_section.push_str("    syscall\n\n");
+                    },
                     Expr::Variable(name) => {
-                        // Print a constant value
-                        if let Some(&value) = constants.get(name) {
-                            text_section.push_str(&format!("    ; Print variable: {}\n", name));
-                            text_section.push_str("    mov rax, 1          ; sys_write\n");
-                            text_section.push_str("    mov rdi, 1          ; stdout\n");
-                            
-                            // Convert number to string and add to data section
-                            let var_label = format!("var_{}", name);
-                            let value_str = value.to_string();
-                            data_section.push_str(&format!("{} db \"{}\", 10, 0\n", var_label, value_str));
-                            
-                            text_section.push_str(&format!("    mov rsi, {}\n", var_label));
-                            text_section.push_str(&format!("    mov rdx, {}\n", value_str.len() + 1)); // +1 for newline
-                            text_section.push_str("    syscall\n\n");
+                        // Print a constant value based on its type
+                        if let Some(value) = constants.get(name) {
+                            match value {
+                                ConstValue::Number(n) => {
+                                    text_section.push_str(&format!("    ; Print numeric variable: {}\n", name));
+                                    text_section.push_str("    mov rax, 1          ; sys_write\n");
+                                    text_section.push_str("    mov rdi, 1          ; stdout\n");
+                                    
+                                    // Convert number to string and add to data section
+                                    let var_label = format!("var_{}", name);
+                                    let value_str = n.to_string();
+                                    data_section.push_str(&format!("{} db \"{}\", 10, 0\n", var_label, value_str));
+                                    
+                                    text_section.push_str(&format!("    mov rsi, {}\n", var_label));
+                                    text_section.push_str(&format!("    mov rdx, {}\n", value_str.len() + 1)); // +1 for newline
+                                    text_section.push_str("    syscall\n\n");
+                                },
+                                ConstValue::Float(f) => {
+                                    text_section.push_str(&format!("    ; Print float variable: {}\n", name));
+                                    text_section.push_str("    mov rax, 1          ; sys_write\n");
+                                    text_section.push_str("    mov rdi, 1          ; stdout\n");
+                                    
+                                    // Convert float to string and add to data section
+                                    let var_label = format!("var_{}", name);
+                                    let value_str = f.to_string();
+                                    data_section.push_str(&format!("{} db \"{}\", 10, 0\n", var_label, value_str));
+                                    
+                                    text_section.push_str(&format!("    mov rsi, {}\n", var_label));
+                                    text_section.push_str(&format!("    mov rdx, {}\n", value_str.len() + 1)); // +1 for newline
+                                    text_section.push_str("    syscall\n\n");
+                                },
+                                ConstValue::String(s) => {
+                                    // Find the label for this string
+                                    let var_label = format!("var_{}", name);
+                                    
+                                    text_section.push_str(&format!("    ; Print string variable: {}\n", name));
+                                    text_section.push_str("    mov rax, 1          ; sys_write\n");
+                                    text_section.push_str("    mov rdi, 1          ; stdout\n");
+                                    text_section.push_str(&format!("    mov rsi, {}\n", var_label));
+                                    text_section.push_str(&format!("    mov rdx, {}\n", s.len() + 1)); // +1 for newline
+                                    text_section.push_str("    syscall\n\n");
+                                },
+                                ConstValue::Boolean(b) => {
+                                    text_section.push_str(&format!("    ; Print boolean variable: {}\n", name));
+                                    text_section.push_str("    mov rax, 1          ; sys_write\n");
+                                    text_section.push_str("    mov rdi, 1          ; stdout\n");
+                                    if *b {
+                                        text_section.push_str("    mov rsi, true_str\n");
+                                        text_section.push_str("    mov rdx, 5       ; 'true' + newline\n");
+                                    } else {
+                                        text_section.push_str("    mov rsi, false_str\n");
+                                        text_section.push_str("    mov rdx, 6       ; 'false' + newline\n");
+                                    }
+                                    text_section.push_str("    syscall\n\n");
+                                },
+                                ConstValue::Array(_) => {
+                                    // For arrays, print a placeholder (a full implementation would be complex)
+                                    text_section.push_str(&format!("    ; Print array variable: {}\n", name));
+                                    
+                                    // This is a simplified version - a complete implementation would iterate through array items
+                                    let var_label = format!("var_{}_label", name);
+                                    data_section.push_str(&format!("{} db \"[Array]\", 10, 0\n", var_label));
+                                    
+                                    text_section.push_str("    mov rax, 1          ; sys_write\n");
+                                    text_section.push_str("    mov rdi, 1          ; stdout\n");
+                                    text_section.push_str(&format!("    mov rsi, {}\n", var_label));
+                                    text_section.push_str("    mov rdx, 8          ; '[Array]' + newline\n");
+                                    text_section.push_str("    syscall\n\n");
+                                },
+                                ConstValue::Null => {
+                                    text_section.push_str(&format!("    ; Print null variable: {}\n", name));
+                                    text_section.push_str("    mov rax, 1          ; sys_write\n");
+                                    text_section.push_str("    mov rdi, 1          ; stdout\n");
+                                    text_section.push_str("    mov rsi, null_str\n");
+                                    text_section.push_str("    mov rdx, 5          ; 'null' + newline\n");
+                                    text_section.push_str("    syscall\n\n");
+                                }
+                            }
                         } else {
                             panic!("Undefined variable: {}", name);
                         }
@@ -87,10 +247,26 @@ pub fn generate_nasm(exprs: &[Expr], output_path: &Path) -> String {
                         text_section.push_str(&format!("    mov rdx, {}\n", num_str.len() + 1)); // +1 for newline
                         text_section.push_str("    syscall\n\n");
                     },
+                    Expr::Float(f) => {
+                        // Print a literal float
+                        text_section.push_str(&format!("    ; Print float: {}\n", f));
+                        text_section.push_str("    mov rax, 1          ; sys_write\n");
+                        text_section.push_str("    mov rdi, 1          ; stdout\n");
+                        
+                        // Convert float to string and add to data section
+                        let num_label = format!("float{}", string_counter);
+                        string_counter += 1;
+                        let num_str = f.to_string();
+                        data_section.push_str(&format!("{} db \"{}\", 10, 0\n", num_label, num_str));
+                        
+                        text_section.push_str(&format!("    mov rsi, {}\n", num_label));
+                        text_section.push_str(&format!("    mov rdx, {}\n", num_str.len() + 1)); // +1 for newline
+                        text_section.push_str("    syscall\n\n");
+                    },
                     Expr::BinaryOp { op: BinOp::Add, left, right } => {
                         // Check if either operand is a string
-                        let left_is_string = is_string_expr(left);
-                        let right_is_string = is_string_expr(right);
+                        let left_is_string = is_string_expr(left, &constants);
+                        let right_is_string = is_string_expr(right, &constants);
                         
                         if left_is_string || right_is_string {
                             // Handle string concatenation
@@ -142,11 +318,22 @@ pub fn generate_nasm(exprs: &[Expr], output_path: &Path) -> String {
                     text_section.push_str(&format!("    mov rdi, {}\n", n));
                     text_section.push_str("    syscall\n\n");
                 } else if let Expr::Variable(name) = &**code {
-                    if let Some(&value) = constants.get(name) {
-                        text_section.push_str(&format!("    ; Exit program with constant {}\n", name));
-                        text_section.push_str("    mov rax, 60         ; sys_exit\n");
-                        text_section.push_str(&format!("    mov rdi, {}\n", value));
-                        text_section.push_str("    syscall\n\n");
+                    if let Some(value) = constants.get(name) {
+                        match value {
+                            ConstValue::Number(n) => {
+                                text_section.push_str(&format!("    ; Exit program with constant {}\n", name));
+                                text_section.push_str("    mov rax, 60         ; sys_exit\n");
+                                text_section.push_str(&format!("    mov rdi, {}\n", n));
+                                text_section.push_str("    syscall\n\n");
+                            },
+                            ConstValue::Boolean(b) => {
+                                text_section.push_str(&format!("    ; Exit program with boolean constant {}\n", name));
+                                text_section.push_str("    mov rax, 60         ; sys_exit\n");
+                                text_section.push_str(&format!("    mov rdi, {}\n", if *b { 1 } else { 0 }));
+                                text_section.push_str("    syscall\n\n");
+                            },
+                            _ => panic!("Cannot use non-numeric constant in exit code: {}", name),
+                        }
                     } else {
                         panic!("Undefined variable in exit: {}", name);
                     }
@@ -160,17 +347,77 @@ pub fn generate_nasm(exprs: &[Expr], output_path: &Path) -> String {
                 }
             },
             Expr::Const { name, value } => {
-                // For constants, we evaluate and store them
+                // For constants, we evaluate and store them - support multiple types
                 match &**value {
                     Expr::Number(n) => {
                         // Check if constant already exists
                         if constants.contains_key(name) {
                             panic!("Constant '{}' already defined", name);
                         }
-                        constants.insert(name.clone(), *n);
+                        constants.insert(name.clone(), ConstValue::Number(*n));
                         text_section.push_str(&format!("    ; Constant {} = {}\n", name, n));
                     },
-                    _ => panic!("Currently only numeric constants are supported")
+                    Expr::Float(f) => {
+                        // Check if constant already exists
+                        if constants.contains_key(name) {
+                            panic!("Constant '{}' already defined", name);
+                        }
+                        constants.insert(name.clone(), ConstValue::Float(*f));
+                        text_section.push_str(&format!("    ; Constant {} = {}\n", name, f));
+                    },
+                    Expr::StringLiteral(s) => {
+                        // Check if constant already exists
+                        if constants.contains_key(name) {
+                            panic!("Constant '{}' already defined", name);
+                        }
+                        
+                        // Add string to data section
+                        let const_label = format!("var_{}", name);
+                        data_section.push_str(&format!("{} db \"{}\", 10, 0\n", const_label, s));
+                        
+                        // Store in constants map
+                        constants.insert(name.clone(), ConstValue::String(s.clone()));
+                        text_section.push_str(&format!("    ; Constant {} = \"{}\"\n", name, s));
+                    },
+                    Expr::Boolean(b) => {
+                        // Check if constant already exists
+                        if constants.contains_key(name) {
+                            panic!("Constant '{}' already defined", name);
+                        }
+                        constants.insert(name.clone(), ConstValue::Boolean(*b));
+                        text_section.push_str(&format!("    ; Constant {} = {}\n", name, b));
+                    },
+                    Expr::Array(elements) => {
+                        // Check if constant already exists
+                        if constants.contains_key(name) {
+                            panic!("Constant '{}' already defined", name);
+                        }
+                        
+                        // Evaluate each element in the array
+                        let mut values = Vec::new();
+                        for elem in elements {
+                            match &**elem {
+                                Expr::Number(n) => values.push(ConstValue::Number(*n)),
+                                Expr::Float(f) => values.push(ConstValue::Float(*f)),
+                                Expr::StringLiteral(s) => values.push(ConstValue::String(s.clone())),
+                                Expr::Boolean(b) => values.push(ConstValue::Boolean(*b)),
+                                Expr::Null => values.push(ConstValue::Null),
+                                _ => panic!("Only literal values are supported in array initialization")
+                            }
+                        }
+                        
+                        constants.insert(name.clone(), ConstValue::Array(values));
+                        text_section.push_str(&format!("    ; Constant {} = [array with {} elements]\n", name, elements.len()));
+                    },
+                    Expr::Null => {
+                        // Check if constant already exists
+                        if constants.contains_key(name) {
+                            panic!("Constant '{}' already defined", name);
+                        }
+                        constants.insert(name.clone(), ConstValue::Null);
+                        text_section.push_str(&format!("    ; Constant {} = null\n", name));
+                    },
+                    _ => panic!("Only literal values are supported for constants")
                 }
             },
             _ => {}
@@ -288,7 +535,8 @@ pub fn generate_nasm(exprs: &[Expr], output_path: &Path) -> String {
         add rsp, 32            ; Free temporary buffer\n\
         ret\n";
 
-
+    // If we added variables to the data section during processing,
+    // we need to make sure the data section is included in the output
     if !data_section.is_empty() && !asm.contains("section .data") {
         // Insert data section at the beginning
         let text_part = asm.clone();
@@ -311,13 +559,62 @@ pub fn generate_nasm(exprs: &[Expr], output_path: &Path) -> String {
     asm
 }
 
+// Helper function to generate print code for various expression types
+fn generate_print_expr(expr: &Expr, text_section: &mut String, 
+                      constants: &HashMap<String, ConstValue>,
+                      string_labels: &Vec<(String, String)>) {
+    match expr {
+        Expr::StringLiteral(s) => {
+            // Find the label for this string
+            let (label, _) = string_labels.iter()
+                .find(|(_, str)| str == s)
+                .expect("String not found in data section");
+            
+            text_section.push_str(&format!("    ; Print string: {}\n", s));
+            text_section.push_str("    mov rax, 1          ; sys_write\n");
+            text_section.push_str("    mov rdi, 1          ; stdout\n");
+            text_section.push_str(&format!("    mov rsi, {}\n", label));
+            text_section.push_str(&format!("    mov rdx, {}\n", s.len()));
+            text_section.push_str("    syscall\n\n");
+        },
+        Expr::Number(n) => {
+            text_section.push_str(&format!("    ; Print number: {}\n", n));
+            text_section.push_str(&format!("    mov rax, {}\n", n));
+            text_section.push_str("    push rax\n");
+            text_section.push_str("    call print_number\n");
+            text_section.push_str("    add rsp, 8\n");
+        },
+        Expr::Boolean(b) => {
+            text_section.push_str(&format!("    ; Print boolean: {}\n", b));
+            text_section.push_str("    mov rax, 1          ; sys_write\n");
+            text_section.push_str("    mov rdi, 1          ; stdout\n");
+            if *b {
+                text_section.push_str("    mov rsi, true_str\n");
+                text_section.push_str("    mov rdx, 4       ; 'true'\n");
+            } else {
+                text_section.push_str("    mov rsi, false_str\n");
+                text_section.push_str("    mov rdx, 5       ; 'false'\n");
+            }
+            text_section.push_str("    syscall\n\n");
+        },
+        // Add more expression types as needed
+        _ => {
+            text_section.push_str("    ; Print expression result\n");
+            generate_expression_code(expr, text_section, constants);
+            text_section.push_str("    push rax\n");
+            text_section.push_str("    call print_number\n");
+            text_section.push_str("    add rsp, 8\n");
+        }
+    }
+}
+
 // Helper function to collect string literals
 fn collect_string_literals(expr: &Expr, string_labels: &mut Vec<(String, String)>, 
                           string_counter: &mut usize, data_section: &mut String) {
     match expr {
         Expr::StringLiteral(s) => {
-            // Check if we already have this string - FIX THE COMPARISON HERE
-            if !string_labels.iter().any(|(_, str)| str == s) {  // Changed from *str == s
+            // Check if we already have this string
+            if !string_labels.iter().any(|(_, str)| str == s) {
                 let label = format!("msg{}", *string_counter);
                 *string_counter += 1;
                 string_labels.push((label.clone(), s.clone()));
@@ -331,28 +628,44 @@ fn collect_string_literals(expr: &Expr, string_labels: &mut Vec<(String, String)
             collect_string_literals(left, string_labels, string_counter, data_section);
             collect_string_literals(right, string_labels, string_counter, data_section);
         },
+        Expr::Array(elements) => {
+            for elem in elements {
+                collect_string_literals(elem, string_labels, string_counter, data_section);
+            }
+        },
         _ => {}
     }
 }
 
 // Helper function to check if an expression is a string or contains a string
-fn is_string_expr(expr: &Expr) -> bool {
+fn is_string_expr(expr: &Expr, constants: &HashMap<String, ConstValue>) -> bool {
     match expr {
         Expr::StringLiteral(_) => true,
-        Expr::BinaryOp { op: BinOp::Add, left, right } => is_string_expr(left) || is_string_expr(right),
+        Expr::Variable(name) => {
+            if let Some(value) = constants.get(name) {
+                match value {
+                    ConstValue::String(_) => true,
+                    _ => false,
+                }
+            } else {
+                false
+            }
+        },
+        Expr::BinaryOp { op: BinOp::Add, left, right } => 
+            is_string_expr(left, constants) || is_string_expr(right, constants),
         _ => false
     }
 }
 
 // Generate code for string concatenation
 fn generate_string_concat(expr: &Expr, text_section: &mut String, 
-                         constants: &HashMap<String, i32>, 
+                         constants: &HashMap<String, ConstValue>, 
                          string_labels: &Vec<(String, String)>) {
     match expr {
         Expr::StringLiteral(s) => {
-            // Find the label for this string - FIX THE COMPARISON HERE
+            // Find the label for this string
             let (label, _) = string_labels.iter()
-                .find(|(_, str)| str == s)  // Changed from *str == s
+                .find(|(_, str)| str == s)
                 .expect("String not found in data section");
             
             text_section.push_str(&format!("    ; Append string: {}\n", s));
@@ -364,11 +677,69 @@ fn generate_string_concat(expr: &Expr, text_section: &mut String,
             text_section.push_str(&format!("    mov rax, {}\n", n));
             text_section.push_str("    call append_number\n");
         },
+        Expr::Float(f) => {
+            // For float concatenation, convert to string and store in data section
+            let float_label = format!("float_concat_{}", f.to_string().replace(".", "_"));
+            let float_str = f.to_string();
+            text_section.push_str(&format!("    ; Append float: {}\n", f));
+            text_section.push_str(&format!("    mov rsi, {}\n", float_label));
+            text_section.push_str("    call append_string\n");
+        },
+        Expr::Boolean(b) => {
+            text_section.push_str(&format!("    ; Append boolean: {}\n", b));
+            if *b {
+                text_section.push_str("    mov rsi, true_str\n");
+            } else {
+                text_section.push_str("    mov rsi, false_str\n");
+            }
+            text_section.push_str("    call append_string\n");
+        },
         Expr::Variable(name) => {
-            if let Some(&value) = constants.get(name) {
-                text_section.push_str(&format!("    ; Append variable: {}\n", name));
-                text_section.push_str(&format!("    mov rax, {}\n", value));
-                text_section.push_str("    call append_number\n");
+            if let Some(value) = constants.get(name) {
+                match value {
+                    ConstValue::Number(n) => {
+                        text_section.push_str(&format!("    ; Append numeric variable: {}\n", name));
+                        text_section.push_str(&format!("    mov rax, {}\n", n));
+                        text_section.push_str("    call append_number\n");
+                    },
+                    ConstValue::Float(f) => {
+                        text_section.push_str(&format!("    ; Append float variable: {}\n", name));
+                        let float_str = f.to_string();
+                        let float_label = format!("float_var_{}", name);
+                        text_section.push_str(&format!("    mov rsi, {}\n", float_label));
+                        text_section.push_str("    call append_string\n");
+                    },
+                    ConstValue::String(_) => {
+                        text_section.push_str(&format!("    ; Append string variable: {}\n", name));
+                        text_section.push_str(&format!("    mov rsi, var_{}\n", name));
+                        text_section.push_str("    call append_string\n");
+                    },
+                    ConstValue::Boolean(b) => {
+                        text_section.push_str(&format!("    ; Append boolean variable: {}\n", name));
+                        if *b {
+                            text_section.push_str("    mov rsi, true_str\n");
+                        } else {
+                            text_section.push_str("    mov rsi, false_str\n");
+                        }
+                        text_section.push_str("    call append_string\n");
+                    },
+                    ConstValue::Array(_) => {
+                        text_section.push_str(&format!("    ; Append array variable: {}\n", name));
+                        text_section.push_str("    mov rsi, array_open\n");
+                        text_section.push_str("    call append_string\n");
+                        
+                        // We would need more complex logic to iterate through array elements
+                        // For simplicity, just append "[Array]"
+                        let array_label = format!("array_repr_{}", name);
+                        text_section.push_str("    mov rsi, array_close\n");
+                        text_section.push_str("    call append_string\n");
+                    },
+                    ConstValue::Null => {
+                        text_section.push_str(&format!("    ; Append null variable: {}\n", name));
+                        text_section.push_str("    mov rsi, null_str\n");
+                        text_section.push_str("    call append_string\n");
+                    }
+                }
             } else {
                 panic!("Undefined variable: {}", name);
             }
@@ -383,21 +754,31 @@ fn generate_string_concat(expr: &Expr, text_section: &mut String,
 }
 
 // Helper function to generate expression evaluation code
-fn generate_expression_code(expr: &Expr, text_section: &mut String, constants: &HashMap<String, i32>) {
+fn generate_expression_code(expr: &Expr, text_section: &mut String, constants: &HashMap<String, ConstValue>) {
     match expr {
         Expr::Number(n) => {
             text_section.push_str(&format!("    mov rax, {}\n", n));
         },
         Expr::Variable(name) => {
-            if let Some(&value) = constants.get(name) {
-                text_section.push_str(&format!("    mov rax, {}\n", value));
+            if let Some(value) = constants.get(name) {
+                match value {
+                    ConstValue::Number(n) => {
+                        text_section.push_str(&format!("    mov rax, {}\n", n));
+                    },
+                    ConstValue::Boolean(b) => {
+                        text_section.push_str(&format!("    mov rax, {}\n", if *b { 1 } else { 0 }));
+                    },
+                    _ => {
+                        panic!("Cannot use non-numeric constant in numeric expression: {}", name);
+                    }
+                }
             } else {
                 panic!("Undefined variable: {}", name);
             }
         },
         Expr::BinaryOp { op, left, right } => {
             // Check if this is a string operation
-            if matches!(op, BinOp::Add) && (is_string_expr(left) || is_string_expr(right)) {
+            if matches!(op, BinOp::Add) && (is_string_expr(left, constants) || is_string_expr(right, constants)) {
                 panic!("String operations should be handled by generate_string_concat");
             }
             
@@ -420,7 +801,40 @@ fn generate_expression_code(expr: &Expr, text_section: &mut String, constants: &
                     text_section.push_str("    xor rdx, rdx\n"); // Clear RDX for division
                     text_section.push_str("    div rbx\n");
                 },
+                BinOp::Equal => {
+                    text_section.push_str("    cmp rax, rbx\n");
+                    text_section.push_str("    sete al\n");
+                    text_section.push_str("    movzx rax, al\n");
+                },
+                BinOp::NotEqual => {
+                    text_section.push_str("    cmp rax, rbx\n");
+                    text_section.push_str("    setne al\n");
+                    text_section.push_str("    movzx rax, al\n");
+                },
+                BinOp::Lt => {
+                    text_section.push_str("    cmp rax, rbx\n");
+                    text_section.push_str("    setl al\n");
+                    text_section.push_str("    movzx rax, al\n");
+                },
+                BinOp::Gt => {
+                    text_section.push_str("    cmp rax, rbx\n");
+                    text_section.push_str("    setg al\n");
+                    text_section.push_str("    movzx rax, al\n");
+                },
+                BinOp::Lte => {
+                    text_section.push_str("    cmp rax, rbx\n");
+                    text_section.push_str("    setle al\n");
+                    text_section.push_str("    movzx rax, al\n");
+                },
+                BinOp::Gte => {
+                    text_section.push_str("    cmp rax, rbx\n");
+                    text_section.push_str("    setge al\n");
+                    text_section.push_str("    movzx rax, al\n");
+                },
             }
+        },
+        Expr::Boolean(b) => {
+            text_section.push_str(&format!("    mov rax, {}\n", if *b { 1 } else { 0 }));
         },
         _ => panic!("Unsupported expression in code generation"),
     }
