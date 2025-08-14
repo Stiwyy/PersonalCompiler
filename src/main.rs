@@ -5,9 +5,8 @@ mod codegen;
 
 use lexer::lex;
 use parser::Parser;
-use ast::Expr;
+use crate::ast::{Expr, BinOp};
 use std::path::Path;
-use crate::ast::BinOp;
 use std::collections::HashMap;
 
 fn main() {
@@ -58,8 +57,8 @@ fn main() {
 fn eval(expr: &Expr, constants: &mut HashMap<String, i32>) -> i32 {
     match expr {
         Expr::Number(n) => *n,
-        Expr::StringLiteral(s) => {
-            println!("{}", s);
+        Expr::StringLiteral(_s) => {
+            // Just return 0 when evaluating, don't print here
             0
         }
         Expr::BinaryOp { op, left, right } => {
@@ -73,19 +72,12 @@ fn eval(expr: &Expr, constants: &mut HashMap<String, i32>) -> i32 {
             }
         }
         Expr::Print(e) => {
-            match **e {
-                Expr::Number(n) => println!("{}", n),
-                Expr::StringLiteral(ref s) => println!("{}", s),
-                Expr::Variable(ref name) => {
-                    if let Some(&value) = constants.get(name) {
-                        println!("{}", value);
-                    } else {
-                        println!("Undefined variable: {}", name);
-                    }
-                }
-                _ => println!("Unsupported print expression"),
-            }
-            0
+            // First, evaluate the expression to get its value
+            let value = eval(e, constants);
+            // Then print the value
+            println!("{}", value);
+            // Return the value (or 0) as the result of the print statement
+            value
         }
         Expr::Exit(e) => eval(e, constants),
         Expr::Const { name, value } => {
