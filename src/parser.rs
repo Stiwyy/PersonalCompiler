@@ -127,6 +127,15 @@ impl Parser {
         None
     }
 
+    pub fn parse_const_declaration(%mut self) -> Option<Expr> {
+        if let Some(Token::Const) = self.peak(){
+            self.eat();
+        } else {
+            return None;
+        };
+
+    }
+
 
     // Parsing a general expression
     fn parse_expr(&mut self) -> Option<Expr> {
