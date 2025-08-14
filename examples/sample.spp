@@ -1,3 +1,55 @@
-const number1 = 42;
-const number2 = 8;
-console.print("hello" + "test");
+const num = 42;
+console.print(num);
+
+const pi = 3;
+console.print(pi);
+
+const greeting = "Hello, World!";
+console.print(greeting);
+
+const isTrue = true;
+const isFalse = false;
+console.print(isTrue);
+console.print(isFalse);
+
+const nothing = null;
+console.print(nothing);
+
+const myArray = [1, 2, 3, "four", true, null];
+console.print(myArray);
+
+console.print(5 + 3);
+console.print(10 - 4);
+console.print(6 * 7);
+console.print(20 / 5);
+
+console.print(num + 8);
+console.print(num * 2);
+console.print(pi + num);
+
+console.print("The value of num is: " + num);
+console.print("Pi approximately equals " + pi);
+console.print("Concatenating " + "multiple " + "strings");
+
+console.print("The answer is " + 42);
+console.print(num + " is the answer");
+console.print("Boolean: " + true);
+
+console.print(5 == 5);
+console.print(5 != 5);
+console.print(10 > 5);
+console.print(5 < 10);
+console.print(5 >= 5);
+console.print(5 <= 4);
+
+console.print(num == 42);
+console.print(num != pi);
+
+console.print((num + 8) * 2);
+console.print(num + (8 * 2));
+
+const date = "2025-08-14";
+const time = "20:27:55";
+console.print("Current date and time: " + date + " " + time);
+
+exit(0);

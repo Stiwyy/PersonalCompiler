@@ -680,10 +680,10 @@ fn generate_string_concat(expr: &Expr, text_section: &mut String,
         Expr::Float(f) => {
             // For float concatenation, convert to string and store in data section
             let float_label = format!("float_concat_{}", f.to_string().replace(".", "_"));
-            let float_str = f.to_string();
+            let _float_str = f.to_string();
             text_section.push_str(&format!("    ; Append float: {}\n", f));
-            text_section.push_str(&format!("    mov rsi, {}\n", float_label));
-            text_section.push_str("    call append_string\n");
+			text_section.push_str(&format!("    mov rsi, {}\n", float_label));
+			text_section.push_str("    call append_string\n");
         },
         Expr::Boolean(b) => {
             text_section.push_str(&format!("    ; Append boolean: {}\n", b));
@@ -703,11 +703,11 @@ fn generate_string_concat(expr: &Expr, text_section: &mut String,
                         text_section.push_str("    call append_number\n");
                     },
                     ConstValue::Float(f) => {
-                        text_section.push_str(&format!("    ; Append float variable: {}\n", name));
-                        let float_str = f.to_string();
+                    	text_section.push_str(&format!("    ; Append float variable: {}\n", name));
+						let _float_str = f.to_string();
                         let float_label = format!("float_var_{}", name);
                         text_section.push_str(&format!("    mov rsi, {}\n", float_label));
-                        text_section.push_str("    call append_string\n");
+						text_section.push_str("    call append_string\n");
                     },
                     ConstValue::String(_) => {
                         text_section.push_str(&format!("    ; Append string variable: {}\n", name));
@@ -725,14 +725,14 @@ fn generate_string_concat(expr: &Expr, text_section: &mut String,
                     },
                     ConstValue::Array(_) => {
                         text_section.push_str(&format!("    ; Append array variable: {}\n", name));
-                        text_section.push_str("    mov rsi, array_open\n");
-                        text_section.push_str("    call append_string\n");
+						text_section.push_str("    mov rsi, array_open\n");
+						text_section.push_str("    call append_string\n");
                         
                         // We would need more complex logic to iterate through array elements
                         // For simplicity, just append "[Array]"
-                        let array_label = format!("array_repr_{}", name);
-                        text_section.push_str("    mov rsi, array_close\n");
-                        text_section.push_str("    call append_string\n");
+                        let _array_label = format!("array_repr_{}", name);
+						text_section.push_str("    mov rsi, array_close\n");
+						text_section.push_str("    call append_string\n");
                     },
                     ConstValue::Null => {
                         text_section.push_str(&format!("    ; Append null variable: {}\n", name));
