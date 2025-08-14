@@ -9,6 +9,11 @@ pub enum Expr {
     },
     Print(Box<Expr>),
     Exit(Box<Expr>),
+    Const {
+            name: String,
+            value: Box<Expr>,
+        },
+        Variable(String),
 }
 
 #[derive(Debug)]
