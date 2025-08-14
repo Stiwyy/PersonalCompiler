@@ -55,30 +55,61 @@ fn main() {
 }
 
 fn eval(expr: &Expr) -> i32 {
-    match expr {
-        Expr::Number(n) => *n,
-        Expr::StringLiteral(s) => {
-            println!("{}", s); // Output the string literal
-            0
-        }
-        Expr::BinaryOp { op, left, right } => {
-            let l = eval(left);
-            let r = eval(right);
-            match op {
-                BinOp::Add => l + r,
-                BinOp::Sub => l - r,
-                BinOp::Mul => l * r,
-                BinOp::Div => l / r,
+	// Store constants across evaluations
+	static mut CONSTANTS: HashMap<String, i32> = None;
+
+	unsafe {
+		if CONSTANTS.is_none() {
+			CONSTANTS = Some(HashMap::new());
+		}
+		let constants = CONSTANTS.as_mut().unwrap();
+
+		match expr {
+			Expr::Number(n) => *n,
+			Expr::StringLiteral(s) => {
+				println!("{}", s);
+				0
+			}
+			Expr::BinaryOp { op, left, right} => {
+				let l = eval(left);
+				let r = eval(right);
+				match op {
+					BinOp::Add => l + r,
+					BinOp::Sub => l - r,
+					BinOp::Mul => l * r,
+					BinOp::Div => l / r,
+				}
+			}
+			Expr::Print(e) => {
+				match **e {
+					Expr::Number(n) => println!("{}", n),
+					Expr::StringLiteral(ref s) => println!("{}", s),
+					Expr::Variable(ref name) => {
+						if let Some(& value) = constants.get(name) {
+							println!("{}", value);
+						} else {
+							println!("Undefined variable: {}", name);
+						}
+					}
+					_ => println!("Unsupported print expression"),
+				}
+				0
+			}
+			Expr::Exit(e) => eval(e),
+            Expr::Const { name, value } => {
+                // Check if constant already exists
+                if constants.contains_key(name) {
+                    panic!("Error: Constant '{}' already defined", name);
+                }
+                let val = eval(value);
+                constants.insert(name.clone(), val);
+                val
+            }
+            Expr::Variable(name) => {
+                // Look up the variable
+                *constants.get(name).unwrap_or_else(|| 
+                    panic!("Error: Undefined variable: {}", name))
             }
         }
-        Expr::Print(e) => {
-            match **e {
-                Expr::Number(n) => println!("{}", n),
-                Expr::StringLiteral(ref s) => println!("{}", s),
-                _ => println!("Unsupported print expression"),
-            }
-            0
-        }
-        Expr::Exit(e) => eval(e),
     }
 }
