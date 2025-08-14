@@ -1,3 +1,27 @@
-const number1 = 42;
-const number2 = 8;
-console.print("hello" + "test");
+const username = "Stiwyy";
+const date = "2025-08-14";
+const time = "21:43:17";
+
+const num = 42;
+const pi = 3.14159;
+const isTrue = true;
+const empty = null;
+const arr = [1, "two", true, null];
+
+const sum = num + 8;
+const product = pi * num;
+const isGreater = num > 10;
+const greeting = "Hello, " + username;
+const complexExpr = (num * 2) + (pi / 2) > 100;
+const mixedTypes = pi > num;
+
+console.print(greeting + " at " + date + " " + time);
+console.print("Number: " + num + ", Float: " + pi);
+console.print("Boolean: " + isTrue + ", Null: " + empty);
+console.print("Array: " + arr);
+console.print("Sum: " + sum + ", Product: " + product);
+console.print("Is greater: " + isGreater);
+console.print("Complex expression: " + complexExpr);
+console.print("Mixed types comparison: " + mixedTypes);
+
+exit(0);
