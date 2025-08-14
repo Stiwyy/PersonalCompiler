@@ -14,6 +14,8 @@ pub enum Token {
     Print,
     Dot,
     StringLiteral(String),
+    Const,
+    Equals,
 }
 
 // Break code down into Tokens
@@ -93,6 +95,11 @@ pub fn lex(input: &str) -> Vec<Token> {
                     panic!("Unterminated string literal");
                 }
             }
+            '=' => {
+                chars.next();
+                tokens.push(Token::Equals)
+            }
+
             // if char is a letter
             c if c.is_alphabetic() => {
                 let mut ident = String::new();
@@ -110,6 +117,8 @@ pub fn lex(input: &str) -> Vec<Token> {
                     tokens.push(Token::Println);
                 } else if ident == "print" {
                     tokens.push(Token::Print);
+                } else if ident == "const" {
+                    tokens.push(Token::Const)
                 } else {
                     tokens.push(Token::Ident(ident));
                 }
