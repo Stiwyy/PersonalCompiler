@@ -132,7 +132,30 @@ impl Parser {
             self.eat();
         } else {
             return None;
-        };
+        }
+
+		let name = if let Some(Token::Ident(name)) = self.eat() {
+			name
+		} else {
+			return None;
+		};
+
+		if let Some(Token::Equals) = self.peek() {
+			self.eat();
+		} else {
+			return None;
+		}
+
+		let value = self.parse_expr()?;
+
+		if let Some(Token::Semicolon) = self.peek() {
+			self.eat();
+			return Some(Expr::Const {
+				name,
+				value: Box::new(value),
+			});
+		}
+		None
 
     }
 
@@ -196,19 +219,38 @@ impl Parser {
 
     // Parsing a primary expression (number, string literal, parenthesis)
     fn parse_primary(&mut self) -> Option<Expr> {
-        match self.eat()? {
-            Token::Number(n) => Some(Expr::Number(n)),
-            Token::StringLiteral(s) => Some(Expr::StringLiteral(s)),
-            Token::LParen => {
-                let expr = self.parse_expr()?;
-                if let Some(Token::RParen) = self.peek() {
-                    self.eat();
-                    Some(expr)
-                } else {
-                    None
-                }
+    match self.peek()? {
+        Token::Number(_) => {
+            if let Token::Number(n) = self.eat()? {
+                Some(Expr::Number(n))
+            } else {
+                None
             }
-            _ => None,
+        },
+        Token::StringLiteral(_) => {
+            if let Token::StringLiteral(s) = self.eat()? {
+                Some(Expr::StringLiteral(s))
+            } else {
+                None
+            }
+        },
+        Token::Ident(_) => {
+            if let Token::Ident(name) = self.eat()? {
+                Some(Expr::Variable(name))
+            } else {
+                None
+            }
+        },
+        Token::LParen => {
+            self.eat();
+            let expr = self.parse_expr()?;
+            if let Some(Token::RParen) = self.peek() {
+                self.eat();
+                Some(expr)
+            } else {
+                None
+            }
         }
+        _ => None,
     }
 }
