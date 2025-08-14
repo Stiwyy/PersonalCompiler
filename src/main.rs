@@ -62,6 +62,7 @@ fn eval(expr: &Expr, constants: &mut HashMap<String, i32>) -> i32 {
             0
         }
         Expr::BinaryOp { op, left, right } => {
+            // For non-print contexts, just do regular numeric evaluation
             let l = eval(left, constants);
             let r = eval(right, constants);
             match op {
@@ -72,12 +73,37 @@ fn eval(expr: &Expr, constants: &mut HashMap<String, i32>) -> i32 {
             }
         }
         Expr::Print(e) => {
-            // First, evaluate the expression to get its value
-            let value = eval(e, constants);
-            // Then print the value
-            println!("{}", value);
-            // Return the value (or 0) as the result of the print statement
-            value
+            match &**e {
+                Expr::StringLiteral(s) => {
+                    println!("{}", s);
+                    0
+                },
+                Expr::BinaryOp { op: BinOp::Add, left, right } => {
+                    // Check if either operand is a string literal
+                    let left_is_string = matches!(**left, Expr::StringLiteral(_));
+                    let right_is_string = matches!(**right, Expr::StringLiteral(_));
+                    
+                    if left_is_string || right_is_string {
+                        // Handle string concatenation
+                        let left_value = convert_to_string(left, constants);
+                        let right_value = convert_to_string(right, constants);
+                        
+                        println!("{}{}", left_value, right_value);
+                        0
+                    } else {
+                        // Regular numeric addition
+                        let value = eval(e, constants);
+                        println!("{}", value);
+                        value
+                    }
+                },
+                _ => {
+                    // For non-string expressions, evaluate and print the result
+                    let value = eval(e, constants);
+                    println!("{}", value);
+                    value
+                }
+            }
         }
         Expr::Exit(e) => eval(e, constants),
         Expr::Const { name, value } => {
@@ -94,5 +120,23 @@ fn eval(expr: &Expr, constants: &mut HashMap<String, i32>) -> i32 {
             *constants.get(name).unwrap_or_else(|| 
                 panic!("Error: Undefined variable: {}", name))
         }
+    }
+}
+
+// Helper function to convert any expression to a string
+fn convert_to_string(expr: &Expr, constants: &HashMap<String, i32>) -> String {
+    match expr {
+        Expr::StringLiteral(s) => s.clone(),
+        Expr::Number(n) => n.to_string(),
+        Expr::Variable(name) => {
+            if let Some(&value) = constants.get(name) {
+                value.to_string()
+            } else {
+                panic!("Undefined variable: {}", name)
+            }
+        },
+        // For complex expressions, evaluate them first
+        Expr::BinaryOp { .. } => eval(expr, &mut constants.clone()).to_string(),
+        _ => format!("<unsupported type>")
     }
 }
