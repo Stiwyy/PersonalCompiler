@@ -9,6 +9,39 @@ use crate::ast::{Expr, BinOp};
 use std::path::Path;
 use std::collections::HashMap;
 
+// Define a comprehensive ConstValue enum to match the one in codegen.rs
+#[derive(Clone, Debug)]
+enum ConstValue {
+    Number(i32),
+    Float(f64),
+    String(String),
+    Boolean(bool),
+    Array(Vec<ConstValue>),
+    Null,
+}
+
+impl std::fmt::Display for ConstValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            ConstValue::Number(n) => write!(f, "{}", n),
+            ConstValue::Float(n) => write!(f, "{}", n),
+            ConstValue::String(s) => write!(f, "{}", s),
+            ConstValue::Boolean(b) => write!(f, "{}", b),
+            ConstValue::Array(arr) => {
+                write!(f, "[")?;
+                for (i, val) in arr.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", val)?;
+                }
+                write!(f, "]")
+            },
+            ConstValue::Null => write!(f, "null"),
+        }
+    }
+}
+
 fn main() {
     let source = match std::fs::read_to_string("examples/sample.spp") {
         Ok(content) => content,
@@ -54,57 +87,115 @@ fn main() {
     }
 }
 
-fn eval(expr: &Expr, constants: &mut HashMap<String, i32>) -> i32 {
+fn eval(expr: &Expr, constants: &mut HashMap<String, ConstValue>) -> ConstValue {
     match expr {
-        Expr::Number(n) => *n,
-        Expr::StringLiteral(_s) => {
-            // Just return 0 when evaluating, don't print here
-            0
-        }
+        Expr::Number(n) => ConstValue::Number(*n),
+        Expr::Float(f) => ConstValue::Float(*f),
+        Expr::StringLiteral(s) => ConstValue::String(s.clone()),
+        Expr::Boolean(b) => ConstValue::Boolean(*b),
+        Expr::Null => ConstValue::Null,
+        Expr::Array(elements) => {
+            let mut values = Vec::new();
+            for elem in elements {
+                values.push(eval(elem, constants));
+            }
+            ConstValue::Array(values)
+        },
         Expr::BinaryOp { op, left, right } => {
-            // For non-print contexts, just do regular numeric evaluation
             let l = eval(left, constants);
             let r = eval(right, constants);
-            match op {
-                BinOp::Add => l + r,
-                BinOp::Sub => l - r,
-                BinOp::Mul => l * r,
-                BinOp::Div => l / r,
-            }
-        }
-        Expr::Print(e) => {
-            match &**e {
-                Expr::StringLiteral(s) => {
-                    println!("{}", s);
-                    0
-                },
-                Expr::BinaryOp { op: BinOp::Add, left, right } => {
-                    // Check if either operand is a string literal
-                    let left_is_string = matches!(**left, Expr::StringLiteral(_));
-                    let right_is_string = matches!(**right, Expr::StringLiteral(_));
-                    
-                    if left_is_string || right_is_string {
-                        // Handle string concatenation
-                        let left_value = convert_to_string(left, constants);
-                        let right_value = convert_to_string(right, constants);
-                        
-                        println!("{}{}", left_value, right_value);
-                        0
-                    } else {
-                        // Regular numeric addition
-                        let value = eval(e, constants);
-                        println!("{}", value);
-                        value
+            
+            // String concatenation
+            match (&l, &r) {
+                (ConstValue::String(ls), _) => {
+                    if matches!(op, BinOp::Add) {
+                        return ConstValue::String(format!("{}{}", ls, r));
                     }
                 },
-                _ => {
-                    // For non-string expressions, evaluate and print the result
-                    let value = eval(e, constants);
-                    println!("{}", value);
-                    value
-                }
+                (_, ConstValue::String(rs)) => {
+                    if matches!(op, BinOp::Add) {
+                        return ConstValue::String(format!("{}{}", l, rs));
+                    }
+                },
+                _ => {}
             }
-        }
+            
+            // Numeric operations
+            match (l, r) {
+                (ConstValue::Number(ln), ConstValue::Number(rn)) => {
+                    match op {
+                        BinOp::Add => ConstValue::Number(ln + rn),
+                        BinOp::Sub => ConstValue::Number(ln - rn),
+                        BinOp::Mul => ConstValue::Number(ln * rn),
+                        BinOp::Div => ConstValue::Number(ln / rn),
+                        BinOp::Equal => ConstValue::Boolean(ln == rn),
+                        BinOp::NotEqual => ConstValue::Boolean(ln != rn),
+                        BinOp::Lt => ConstValue::Boolean(ln < rn),
+                        BinOp::Gt => ConstValue::Boolean(ln > rn),
+                        BinOp::Lte => ConstValue::Boolean(ln <= rn),
+                        BinOp::Gte => ConstValue::Boolean(ln >= rn),
+                    }
+                },
+                (ConstValue::Float(lf), ConstValue::Float(rf)) => {
+                    match op {
+                        BinOp::Add => ConstValue::Float(lf + rf),
+                        BinOp::Sub => ConstValue::Float(lf - rf),
+                        BinOp::Mul => ConstValue::Float(lf * rf),
+                        BinOp::Div => ConstValue::Float(lf / rf),
+                        BinOp::Equal => ConstValue::Boolean(lf == rf),
+                        BinOp::NotEqual => ConstValue::Boolean(lf != rf),
+                        BinOp::Lt => ConstValue::Boolean(lf < rf),
+                        BinOp::Gt => ConstValue::Boolean(lf > rf),
+                        BinOp::Lte => ConstValue::Boolean(lf <= rf),
+                        BinOp::Gte => ConstValue::Boolean(lf >= rf),
+                    }
+                },
+                (ConstValue::Number(ln), ConstValue::Float(rf)) => {
+                    let lf = ln as f64;
+                    match op {
+                        BinOp::Add => ConstValue::Float(lf + rf),
+                        BinOp::Sub => ConstValue::Float(lf - rf),
+                        BinOp::Mul => ConstValue::Float(lf * rf),
+                        BinOp::Div => ConstValue::Float(lf / rf),
+                        BinOp::Equal => ConstValue::Boolean(lf == rf),
+                        BinOp::NotEqual => ConstValue::Boolean(lf != rf),
+                        BinOp::Lt => ConstValue::Boolean(lf < rf),
+                        BinOp::Gt => ConstValue::Boolean(lf > rf),
+                        BinOp::Lte => ConstValue::Boolean(lf <= rf),
+                        BinOp::Gte => ConstValue::Boolean(lf >= rf),
+                    }
+                },
+                (ConstValue::Float(lf), ConstValue::Number(rn)) => {
+                    let rf = rn as f64;
+                    match op {
+                        BinOp::Add => ConstValue::Float(lf + rf),
+                        BinOp::Sub => ConstValue::Float(lf - rf),
+                        BinOp::Mul => ConstValue::Float(lf * rf),
+                        BinOp::Div => ConstValue::Float(lf / rf),
+                        BinOp::Equal => ConstValue::Boolean(lf == rf),
+                        BinOp::NotEqual => ConstValue::Boolean(lf != rf),
+                        BinOp::Lt => ConstValue::Boolean(lf < rf),
+                        BinOp::Gt => ConstValue::Boolean(lf > rf),
+                        BinOp::Lte => ConstValue::Boolean(lf <= rf),
+                        BinOp::Gte => ConstValue::Boolean(lf >= rf),
+                    }
+                },
+                (ConstValue::Boolean(lb), ConstValue::Boolean(rb)) => {
+                    match op {
+                        BinOp::Equal => ConstValue::Boolean(lb == rb),
+                        BinOp::NotEqual => ConstValue::Boolean(lb != rb),
+                        _ => panic!("Unsupported operation for boolean values"),
+                    }
+                },
+                _ => panic!("Cannot perform operation between different types"),
+            }
+        },
+        Expr::Print(e) => {
+            // Handle printing differently based on expression type
+            let value = eval(e, constants);
+            println!("{}", value);
+            value
+        },
         Expr::Exit(e) => eval(e, constants),
         Expr::Const { name, value } => {
             // Check if constant already exists
@@ -112,31 +203,14 @@ fn eval(expr: &Expr, constants: &mut HashMap<String, i32>) -> i32 {
                 panic!("Error: Constant '{}' already defined", name);
             }
             let val = eval(value, constants);
-            constants.insert(name.clone(), val);
+            constants.insert(name.clone(), val.clone());
             val
-        }
+        },
         Expr::Variable(name) => {
             // Look up the variable
-            *constants.get(name).unwrap_or_else(|| 
-                panic!("Error: Undefined variable: {}", name))
-        }
-    }
-}
-
-// Helper function to convert any expression to a string
-fn convert_to_string(expr: &Expr, constants: &HashMap<String, i32>) -> String {
-    match expr {
-        Expr::StringLiteral(s) => s.clone(),
-        Expr::Number(n) => n.to_string(),
-        Expr::Variable(name) => {
-            if let Some(&value) = constants.get(name) {
-                value.to_string()
-            } else {
-                panic!("Undefined variable: {}", name)
-            }
+            constants.get(name)
+                .cloned()
+                .unwrap_or_else(|| panic!("Error: Undefined variable: {}", name))
         },
-        // For complex expressions, evaluate them first
-        Expr::BinaryOp { .. } => eval(expr, &mut constants.clone()).to_string(),
-        _ => format!("<unsupported type>")
     }
 }
