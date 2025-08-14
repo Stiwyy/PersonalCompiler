@@ -9,7 +9,6 @@ use crate::ast::{Expr, BinOp};
 use std::path::Path;
 use std::collections::HashMap;
 
-// Define a comprehensive ConstValue enum to match the one in codegen.rs
 #[derive(Clone, Debug)]
 enum ConstValue {
     Number(i32),
