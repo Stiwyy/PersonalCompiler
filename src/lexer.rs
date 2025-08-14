@@ -1,138 +1,184 @@
-#[derive(Debug, Clone)]
-// Token for each valid character
+// Remove the duplicate derive attributes
+#[derive(Debug, PartialEq, Clone)]
 pub enum Token {
-    Number(i32),
+    Number(String),
+    String(String),
+    Identifier(String),
     Plus,
     Minus,
     Star,
     Slash,
+    Equal,
+    NotEqual,
+    LessThan,
+    GreaterThan,
+    LessThanEqual,
+    GreaterThanEqual,
+    Assign,
+    Semicolon,
+    Dot,
     LParen,
     RParen,
-    Ident(String),
-    Semicolon,
-    Println,
-    Print,
-    Dot,
-    StringLiteral(String),
-    Const,
-    Equals,
+    LBracket,
+    RBracket,
+    Comma,
 }
 
-// Break code down into Tokens
-pub fn lex(input: &str) -> Vec<Token> {
+pub fn lex(source: &str) -> Vec<Token> {
     let mut tokens = Vec::new();
-    let mut chars = input.chars().peekable();
-
-    // Goes through each char.
+    let mut chars = source.chars().peekable();
+    
     while let Some(&c) = chars.peek() {
         match c {
-            // Char is a number between 0 and 9
-            '0'..='9' => {
-                let mut number = 0;
-                // Checks if it's a number with more than one digit and if so then builds the entire number.
-                while let Some(d) = chars.peek().and_then(|d| d.to_digit(10)) {
-                    number = number * 10 + d as i32;
-                    chars.next();
-                }
-                // Adds number as a number token to tokens
-                tokens.push(Token::Number(number));
-            }
-            // if char is a + then add it as a plus token to tokens
-            '+' => {
+            // Skip whitespace
+            c if c.is_whitespace() => {
                 chars.next();
-                tokens.push(Token::Plus);
-            }
-            // if char is a - then add it as a minus token to tokens
-            '-' => {
-                chars.next();
-                tokens.push(Token::Minus);
-            }
-            // if char is a * then add it as a star token to tokens
-            '*' => {
-                chars.next();
-                tokens.push(Token::Star);
-            }
-            // if char is a / then add it as a slash token to tokens
-            '/' => {
-                chars.next();
-                tokens.push(Token::Slash);
-            }
-            // if char is a ( then add it as a LParen token to tokens
-            '(' => {
-                chars.next();
-                tokens.push(Token::LParen);
-            }
-            // if char is a ) then add it as a RParen token to tokens
-            ')' => {
-                chars.next();
-                tokens.push(Token::RParen);
-            }
-            // if char is a ; then add it as a semicolon token to tokens
-            ';' => {
-                chars.next();
-                tokens.push(Token::Semicolon);
-            }
-            // if char is a . then add it as a Dot token to tokens
-            '.' => {
-                chars.next();
-                tokens.push(Token::Dot);
-            }
-            // if char is a " then parse a string literal
-            '"' => {
-                chars.next(); // consume opening quote
-                let mut s = String::new();
-                while let Some(&ch) = chars.peek() {
-                    if ch == '"' {
-                        break;
-                    }
-                    s.push(ch);
-                    chars.next();
-                }
-                // consume closing quote
-                if let Some('"') = chars.next() {
-                    tokens.push(Token::StringLiteral(s));
-                } else {
-                    panic!("Unterminated string literal");
-                }
-            }
-            '=' => {
-                chars.next();
-                tokens.push(Token::Equals)
-            }
-
-            // if char is a letter
-            c if c.is_alphabetic() => {
-                let mut ident = String::new();
-                // adds char to ident until it's no longer a letter (alphanumeric)
-                while let Some(&ch) = chars.peek() {
-                    if ch.is_alphanumeric() {
-                        ident.push(ch);
+            },
+            
+            // Numbers
+            c if c.is_digit(10) => {
+                let mut number = String::new();
+                let mut has_dot = false;
+                
+                while let Some(&c) = chars.peek() {
+                    if c.is_digit(10) {
+                        number.push(c);
+                        chars.next();
+                    } else if c == '.' && !has_dot {
+                        has_dot = true;
+                        number.push(c);
                         chars.next();
                     } else {
                         break;
                     }
                 }
-                // Check for keywords "println" or "print"
-                if ident == "println" {
-                    tokens.push(Token::Println);
-                } else if ident == "print" {
-                    tokens.push(Token::Print);
-                } else if ident == "const" {
-                    tokens.push(Token::Const)
-                } else {
-                    tokens.push(Token::Ident(ident));
+                
+                tokens.push(Token::Number(number));
+            },
+            
+            // Strings
+            '"' => {
+                chars.next(); // Skip opening quote
+                let mut s = String::new();
+                
+                while let Some(&c) = chars.peek() {
+                    if c == '"' {
+                        chars.next(); // Skip closing quote
+                        break;
+                    } else {
+                        s.push(c);
+                        chars.next();
+                    }
                 }
-            }
-            // ignores whitespace
-            c if c.is_whitespace() => {
+                
+                tokens.push(Token::String(s));
+            },
+            
+            // Identifiers and keywords
+            c if c.is_alphabetic() || c == '_' => {
+                let mut ident = String::new();
+                
+                while let Some(&c) = chars.peek() {
+                    if c.is_alphanumeric() || c == '_' {
+                        ident.push(c);
+                        chars.next();
+                    } else {
+                        break;
+                    }
+                }
+                
+                // Keywords are just identifiers with special meaning
+                tokens.push(Token::Identifier(ident));
+            },
+            
+            // Operators and punctuation
+            '+' => {
                 chars.next();
-            }
-            // if the char is unknown then stop with an error message
+                tokens.push(Token::Plus);
+            },
+            '-' => {
+                chars.next();
+                tokens.push(Token::Minus);
+            },
+            '*' => {
+                chars.next();
+                tokens.push(Token::Star);
+            },
+            '/' => {
+                chars.next();
+                tokens.push(Token::Slash);
+            },
+            '=' => {
+                chars.next();
+                if chars.peek() == Some(&'=') {
+                    chars.next();
+                    tokens.push(Token::Equal);
+                } else {
+                    tokens.push(Token::Assign);
+                }
+            },
+            '!' => {
+                chars.next();
+                if chars.peek() == Some(&'=') {
+                    chars.next();
+                    tokens.push(Token::NotEqual);
+                } else {
+                    // Handle single ! if needed
+                }
+            },
+            '<' => {
+                chars.next();
+                if chars.peek() == Some(&'=') {
+                    chars.next();
+                    tokens.push(Token::LessThanEqual);
+                } else {
+                    tokens.push(Token::LessThan);
+                }
+            },
+            '>' => {
+                chars.next();
+                if chars.peek() == Some(&'=') {
+                    chars.next();
+                    tokens.push(Token::GreaterThanEqual);
+                } else {
+                    tokens.push(Token::GreaterThan);
+                }
+            },
+            '.' => {
+                chars.next();
+                tokens.push(Token::Dot);
+            },
+            ';' => {
+                chars.next();
+                tokens.push(Token::Semicolon);
+            },
+            '(' => {
+                chars.next();
+                tokens.push(Token::LParen);
+            },
+            ')' => {
+                chars.next();
+                tokens.push(Token::RParen);
+            },
+            '[' => {
+                chars.next();
+                tokens.push(Token::LBracket);
+            },
+            ']' => {
+                chars.next();
+                tokens.push(Token::RBracket);
+            },
+            ',' => {
+                chars.next();
+                tokens.push(Token::Comma);
+            },
+            
+            // Skip any other characters (or handle them as errors)
             _ => {
-                panic!("Unrecognized character: {}", c);
+                chars.next();
             }
         }
     }
-
+    
     tokens
 }
