@@ -1,55 +1,27 @@
-const num = 42;
-console.print(num);
-
-const pi = 3;
-console.print(pi);
-
-const greeting = "Hello, World!";
-console.print(greeting);
-
-const isTrue = true;
-const isFalse = false;
-console.print(isTrue);
-console.print(isFalse);
-
-const nothing = null;
-console.print(nothing);
-
-const myArray = [1, 2, 3, "four", true, null];
-console.print(myArray);
-
-console.print(5 + 3);
-console.print(10 - 4);
-console.print(6 * 7);
-console.print(20 / 5);
-
-console.print(num + 8);
-console.print(num * 2);
-console.print(pi + num);
-
-console.print("The value of num is: " + num);
-console.print("Pi approximately equals " + pi);
-console.print("Concatenating " + "multiple " + "strings");
-
-console.print("The answer is " + 42);
-console.print(num + " is the answer");
-console.print("Boolean: " + true);
-
-console.print(5 == 5);
-console.print(5 != 5);
-console.print(10 > 5);
-console.print(5 < 10);
-console.print(5 >= 5);
-console.print(5 <= 4);
-
-console.print(num == 42);
-console.print(num != pi);
-
-console.print((num + 8) * 2);
-console.print(num + (8 * 2));
-
+const username = "Stiwyy";
 const date = "2025-08-14";
-const time = "20:27:55";
-console.print("Current date and time: " + date + " " + time);
+const time = "21:43:17";
+
+const num = 42;
+const pi = 3.14159;
+const isTrue = true;
+const empty = null;
+const arr = [1, "two", true, null];
+
+const sum = num + 8;
+const product = pi * num;
+const isGreater = num > 10;
+const greeting = "Hello, " + username;
+const complexExpr = (num * 2) + (pi / 2) > 100;
+const mixedTypes = pi > num;
+
+console.print(greeting + " at " + date + " " + time);
+console.print("Number: " + num + ", Float: " + pi);
+console.print("Boolean: " + isTrue + ", Null: " + empty);
+console.print("Array: " + arr);
+console.print("Sum: " + sum + ", Product: " + product);
+console.print("Is greater: " + isGreater);
+console.print("Complex expression: " + complexExpr);
+console.print("Mixed types comparison: " + mixedTypes);
 
 exit(0);

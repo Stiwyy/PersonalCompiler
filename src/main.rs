@@ -75,7 +75,8 @@ fn main() {
     }
 
     // Generate NASM code for all expressions
-    codegen::generate_nasm(&exprs, Path::new("build/out.asm"));
+    let asm_code = codegen::generate_nasm(&exprs);
+	std::fs::write(Path::new("build/out.asm"), asm_code).expect("Failed to write assembly file");
 
     // Create a constants map to track defined constants
     let mut constants = HashMap::new();

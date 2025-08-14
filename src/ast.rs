@@ -19,6 +19,7 @@ pub enum Expr {
     Null,
 }
 
+#[derive(PartialEq)]
 pub enum BinOp {
     Add,
     Sub,
