@@ -8,6 +8,8 @@ use parser::Parser;
 use ast::Expr;
 use std::path::Path;
 use crate::ast::BinOp;
+use std::collections::HashMap;
+
 
 fn main() {
     let source = match std::fs::read_to_string("examples/sample.spp") {
@@ -24,13 +26,15 @@ fn main() {
 
     // Parse all statements until tokens are exhausted
     while !parser.is_finished() {
-        if let Some(print_expr) = parser.parse_console_print_expr() {
-            exprs.push(print_expr);
-        } else if let Some(exit_expr) = parser.parse_exit_expr() {
-            exprs.push(exit_expr);
-        } else {
-            panic!("No valid expression found at token position {}", parser.pos());
-        }
+        if let Some(const_expr) = parser.parse_const_declaration() {
+        exprs.push(const_expr);
+    } else if let Some(print_expr) = parser.parse_console_print_expr() {
+        exprs.push(print_expr);
+    } else if let Some(exit_expr) = parser.parse_exit_expr() {
+        exprs.push(exit_expr);
+    } else {
+        panic!("No valid expression found at token position {}", parser.pos());
+    }
     }
 
     // Check if directory exists before generating file
