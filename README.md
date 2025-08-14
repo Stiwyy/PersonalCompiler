@@ -35,23 +35,59 @@ ld -m elf_x86_64 -o build/out build/out.o && \
 ```
 ---
 
-## SPP Language Features
+## Features
 
 Currently, the SPP language supports:
 
-- Integers  
-- String literals  
-- Arithmetic operations (`+`, `-`, `*`, `/`)  
-- Console output: `console.print("Text");`  
-- Program termination: `exit(code);`  
+### Data Types
+- Integers
+- Floating-point numbers
+- String literals
+- Booleans (true/false)
+- Arrays (mixed types supported)
+- Null values
 
----
+### Constants
+- Constant declarations with compile-time evaluation
+- Constants of any supported data type
+- Complex expressions in constant initialization
+- Constants can reference other constants
 
-## Example
+### Operations
+- Arithmetic operations (+, -, *, /)
+- Comparison operations (==, !=, <, >, <=, >=)
+- String concatenation
+- Mixed-type operations (e.g., adding strings and numbers)
 
-    console.print("Hello World!");
-    exit(10);
+### Control Flow
+- Program termination: `exit(code);`
 
+### Input/Output
+- Console output: `console.print("Text");`
+- String interpolation: `console.print("Value: " + variable);`
+
+### Assembly Generation
+- Generates x86_64 NASM assembly
+- Optimized constant handling
+- Proper memory management
+
+### Example
+```spp
+const username = "Stiwyy";
+const currentDate = "2025-08-14";
+const currentTime = "23:53:15";
+
+console.print("SPP Demo");
+console.print("User: " + username);
+console.print("Date: " + currentDate + " " + currentTime);
+
+const pi = 3.14159;
+const radius = 5;
+const area = pi * radius * radius;
+console.print("Circle area: " + area);
+
+exit(0);
+```
 ---
 
 ## Project Structure
