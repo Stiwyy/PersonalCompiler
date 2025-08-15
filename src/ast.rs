@@ -15,6 +15,14 @@ pub enum Expr {
         name: String,
         value: Box<Expr>,
     },
+	Let {
+		name: String,
+		value: Box<Expr>,
+	},
+	Assign {
+		name: String,
+		value: Box<Expr>,
+	},
     Variable(String),
     Null,
 }
