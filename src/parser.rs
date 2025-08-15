@@ -19,6 +19,93 @@ impl Parser {
         self.pos
     }
 
+    pub fn parse_let_declaration(&mut self) -> Option<Expr> {
+        // Check for let keyword
+        if self.is_finished() || !matches!(&self.tokens[self.pos], Token::Identifier(id) if id == "let") {
+            return None;
+        }
+        self.pos += 1;
+        
+        // Get variable name
+        if self.is_finished() || !matches!(&self.tokens[self.pos], Token::Identifier(_)) {
+            return None;
+        }
+        let name = match &self.tokens[self.pos] {
+            Token::Identifier(id) => id.clone(),
+            _ => unreachable!()
+        };
+        self.pos += 1;
+        
+        // Expect '='
+        if self.is_finished() || self.tokens[self.pos] != Token::Assign {
+            return None;
+        }
+        self.pos += 1;
+        
+        // Parse the value 
+        let value = match self.parse_expression() {
+            Some(expr) => expr,
+            None => return None,
+        };
+        
+        // Expect ';'
+        if self.is_finished() || self.tokens[self.pos] != Token::Semicolon {
+            return None;
+        }
+        self.pos += 1;
+        
+        Some(Expr::Let {
+            name,
+            value: Box::new(value),
+        })
+    }
+
+    pub fn parse_assignment(&mut self) -> Option<Expr> {
+        // Only proceed if the current token is an identifier
+        if self.is_finished() || !matches!(&self.tokens[self.pos], Token::Identifier(_)) {
+            return None;
+        }
+        
+        // Save the current position to backtrack if this isnt an assignment
+        let start_pos = self.pos;
+        
+        // Get variable name
+        let name = match &self.tokens[self.pos] {
+            Token::Identifier(id) => id.clone(),
+            _ => unreachable!()
+        };
+        self.pos += 1;
+        
+        // Check for '='
+        if self.is_finished() || self.tokens[self.pos] != Token::Assign {
+            // Not an assignment, backtrack
+            self.pos = start_pos;
+            return None;
+        }
+        self.pos += 1;
+        
+        // Parse the value
+        let value = match self.parse_expression() {
+            Some(expr) => expr,
+            None => {
+                self.pos = start_pos;
+                return None;
+            },
+        };
+        
+        // Expect ';'
+        if self.is_finished() || self.tokens[self.pos] != Token::Semicolon {
+            self.pos = start_pos;
+            return None;
+        }
+        self.pos += 1;
+        
+        Some(Expr::Assign {
+            name,
+            value: Box::new(value),
+        })
+    }
+
     // Parse a constant declaration: const name = value;
     pub fn parse_const_declaration(&mut self) -> Option<Expr> {
         // Check for 'const' keyword
