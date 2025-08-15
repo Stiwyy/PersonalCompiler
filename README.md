@@ -57,6 +57,13 @@ Currently, the SPP language supports:
 - Complex expressions in constant initialization
 - Constants can reference other constants
 
+### Variables
+- Variable declarations with compile-time evaluation
+- Variables of any supoorted data type
+- Complex expressions in the variable initialization
+- Variable can reference other constants
+- Variables can change their value
+
 ### Operations
 - Arithmetic operations (+, -, *, /)
 - Comparison operations (==, !=, <, >, <=, >=)
