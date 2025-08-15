@@ -1,27 +1,98 @@
-const username = 'Stiwyy';
-const date = "2025-08-14";
-const time = "21:43:17";
+// SPP Language Feature Showcase
+// Created for: Stiwyy
+// Date: 2025-08-15
 
-const num = 42;
-const pi = 3.14159;
-const isTrue = true;
-const empty = null;
-const arr = [1, "two", true, null];
+// ---- Constants (immutable values) ----
+const USERNAME = "Stiwyy";
+const CURRENT_DATE = "2025-08-15";
+const CURRENT_TIME = "22:26:00";
 
-const sum = num + 8;
-const product = pi * num;
-const isGreater = num > 10;
-const greeting = "Hello, " + username;
-const complexExpr = (num * 2) + (pi / 2) > 100;
-const mixedTypes = pi > num;
+// Different data types
+const INTEGER_VALUE = 42;
+const FLOAT_VALUE = 3.14159;
+const BOOLEAN_TRUE = true;
+const BOOLEAN_FALSE = false;
+const NULL_VALUE = null;
 
-console.print(greeting + " at " + date + " " + time);
-console.print("Number: " + num + ", Float: " + pi);
-console.print("Boolean: " + isTrue + ", Null: " + empty);
-console.print("Array: " + arr);
-console.print("Sum: " + sum + ", Product: " + product);
-console.print("Is greater: " + isGreater);
-console.print("Complex expression: " + complexExpr);
-console.print("Mixed types comparison: " + mixedTypes);
+// Array constants
+const NUMBERS = [1, 2, 3, 4, 5];
+const MIXED_ARRAY = [100, "string", true, null, [1, 2]];
 
+// ---- Variables (mutable values) ----
+let counter = 0;
+let message = "Hello, World!";
+let pi_approximation = 3.14;
+let is_active = true;
+
+// ---- String Operations ----
+// String concatenation
+console.print("Welcome, " + USERNAME + "!");
+console.print("Current Date and Time: " + CURRENT_DATE + " " + CURRENT_TIME);
+
+// String with mixed types
+console.print("The value of pi is approximately " + FLOAT_VALUE);
+console.print("Boolean values: " + BOOLEAN_TRUE + " and " + BOOLEAN_FALSE);
+console.print("Null value: " + NULL_VALUE);
+
+// ---- Arithmetic Operations ----
+// Basic math
+let sum = INTEGER_VALUE + 8;
+let difference = INTEGER_VALUE - 10;
+let product = INTEGER_VALUE * 2;
+let quotient = INTEGER_VALUE / 5;
+console.print("Basic math: " + sum + ", " + difference + ", " + product + ", " + quotient);
+
+// Operations with variables
+counter = counter + 1;
+console.print("Counter: " + counter);
+
+// Mixed type arithmetic
+let mixed_math = FLOAT_VALUE * INTEGER_VALUE;
+console.print("Mixed math (float * int): " + mixed_math);
+
+// ---- Comparison Operations ----
+let is_equal = INTEGER_VALUE == 42;
+let is_not_equal = INTEGER_VALUE != 100;
+let is_greater = INTEGER_VALUE > 30;
+let is_less = INTEGER_VALUE < 50;
+let is_greater_equal = INTEGER_VALUE >= 42;
+let is_less_equal = INTEGER_VALUE <= 42;
+
+console.print("Comparisons:");
+console.print("Equal: " + is_equal);
+console.print("Not equal: " + is_not_equal);
+console.print("Greater than: " + is_greater);
+console.print("Less than: " + is_less);
+console.print("Greater than or equal: " + is_greater_equal);
+console.print("Less than or equal: " + is_less_equal);
+
+// ---- Complex Expressions ----
+let complex = (INTEGER_VALUE * 2 + FLOAT_VALUE) > (sum / 2);
+console.print("Complex expression result: " + complex);
+
+// ---- Working with Arrays ----
+console.print("Number array: " + NUMBERS);
+console.print("Mixed array: " + MIXED_ARRAY);
+
+// ---- Variable Reassignment ----
+message = "Updated message: " + message;
+console.print(message);
+
+// ---- String operations with variables ----
+let greeting = "Hello";
+greeting = greeting + ", " + USERNAME + "!";
+console.print(greeting);
+
+// ---- Calculation Example ----
+let radius = 5;
+let area = pi_approximation * radius * radius;
+console.print("Area of circle with radius " + radius + " is: " + area);
+
+// Temperature conversion
+let celsius = 25;
+let fahrenheit = (celsius * 9 / 5) + 32;
+console.print(celsius + "°C is equal to " + fahrenheit + "°F");
+
+// ---- Exit with status code ----
+console.print("Program completed successfully.");
 exit(0);
