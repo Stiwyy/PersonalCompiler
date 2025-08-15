@@ -31,6 +31,7 @@ fn get_string_label(counter: &mut usize, prefix: &str) -> String {
 // Generate NASM assembly from parsed expressions
 pub fn generate_nasm(exprs: &Vec<Expr>) -> String {
     let mut constants: HashMap<String, ConstValue> = HashMap::new();
+    let mut variables: HashMap<String, ConstValue> = HashMap::new();
     let mut string_counter = 0;
     
     let mut text_section = String::from("section .text\n");
@@ -232,7 +233,7 @@ pub fn generate_nasm(exprs: &Vec<Expr>) -> String {
                         
                         // Print each element
                         for (i, elem) in elements.iter().enumerate() {
-                            print_array_element(elem, &mut text_section, &constants, &string_labels, &mut data_section, &mut string_counter);
+                            print_array_element(elem, &mut text_section, &constants, &variables, &string_labels, &mut data_section, &mut string_counter);
                             
                             // Print separator if not last element
                             if i < elements.len() - 1 {
@@ -252,79 +253,22 @@ pub fn generate_nasm(exprs: &Vec<Expr>) -> String {
                         text_section.push_str("    syscall\n\n");
                     },
                     Expr::Variable(name) => {
-                        // Print a constant value based on its type
-                        if let Some(value) = constants.get(name) {
-                            match value {
-                                ConstValue::Number(_) => {
-                                    text_section.push_str(&format!("    ; Print numeric variable: {}\n", name));
-                                    text_section.push_str("    mov rax, 1          ; sys_write\n");
-                                    text_section.push_str("    mov rdi, 1          ; stdout\n");
-                                    
-                                    // Use the consistent label format
-                                    let var_label = get_var_label(name, None);
-                                    
-                                    text_section.push_str(&format!("    mov rsi, {}\n", var_label));
-                                    text_section.push_str("    mov rdx, 20         ; Max number length + newline\n");
-                                    text_section.push_str("    syscall\n\n");
-                                },
-                                ConstValue::Float(_) => {
-                                    text_section.push_str(&format!("    ; Print float variable: {}\n", name));
-                                    text_section.push_str("    mov rax, 1          ; sys_write\n");
-                                    text_section.push_str("    mov rdi, 1          ; stdout\n");
-                                    
-                                    // Use the consistent label format
-                                    let var_label = get_var_label(name, None);
-                                    
-                                    text_section.push_str(&format!("    mov rsi, {}\n", var_label));
-                                    text_section.push_str("    mov rdx, 20         ; Max float length + newline\n");
-                                    text_section.push_str("    syscall\n\n");
-                                },
-                                ConstValue::String(_) => {
-                                    // Use the consistent label format
-                                    let var_label = get_var_label(name, None);
-                                    
-                                    text_section.push_str(&format!("    ; Print string variable: {}\n", name));
-                                    text_section.push_str("    mov rax, 1          ; sys_write\n");
-                                    text_section.push_str("    mov rdi, 1          ; stdout\n");
-                                    text_section.push_str(&format!("    mov rsi, {}\n", var_label));
-                                    text_section.push_str("    mov rdx, 1024       ; Max string length\n");
-                                    text_section.push_str("    syscall\n\n");
-                                },
-                                ConstValue::Boolean(b) => {
-                                    text_section.push_str(&format!("    ; Print boolean variable: {}\n", name));
-                                    text_section.push_str("    mov rax, 1          ; sys_write\n");
-                                    text_section.push_str("    mov rdi, 1          ; stdout\n");
-                                    if *b {
-                                        text_section.push_str("    mov rsi, true_str\n");
-                                        text_section.push_str("    mov rdx, 5       ; 'true' + newline\n");
-                                    } else {
-                                        text_section.push_str("    mov rsi, false_str\n");
-                                        text_section.push_str("    mov rdx, 6       ; 'false' + newline\n");
-                                    }
-                                    text_section.push_str("    syscall\n\n");
-                                },
-                                ConstValue::Array(_) => {
-                                    // For arrays, print a placeholder (a full implementation would be complex)
-                                    text_section.push_str(&format!("    ; Print array variable: {}\n", name));
-                                    
-                                    // Use the consistent label format
-                                    let var_label = get_var_label(name, Some("_label"));
-                                    
-                                    text_section.push_str("    mov rax, 1          ; sys_write\n");
-                                    text_section.push_str("    mov rdi, 1          ; stdout\n");
-                                    text_section.push_str(&format!("    mov rsi, {}\n", var_label));
-                                    text_section.push_str("    mov rdx, 8          ; '[Array]' + newline\n");
-                                    text_section.push_str("    syscall\n\n");
-                                },
-                                ConstValue::Null => {
-                                    text_section.push_str(&format!("    ; Print null variable: {}\n", name));
-                                    text_section.push_str("    mov rax, 1          ; sys_write\n");
-                                    text_section.push_str("    mov rdi, 1          ; stdout\n");
-                                    text_section.push_str("    mov rsi, null_str\n");
-                                    text_section.push_str("    mov rdx, 5          ; 'null' + newline\n");
-                                    text_section.push_str("    syscall\n\n");
-                                }
-                            }
+                        // Check if it's a constant or variable
+                        let in_constants = constants.contains_key(name);
+                        let in_variables = variables.contains_key(name);
+                        
+                        if in_constants || in_variables {
+                            let var_type = if in_constants { "constant" } else { "variable" };
+                            
+                            // Use the consistent label format
+                            let var_label = get_var_label(name, None);
+                            
+                            text_section.push_str(&format!("    ; Print {} value: {}\n", var_type, name));
+                            text_section.push_str("    mov rax, 1          ; sys_write\n");
+                            text_section.push_str("    mov rdi, 1          ; stdout\n");
+                            text_section.push_str(&format!("    mov rsi, {}\n", var_label));
+                            text_section.push_str("    mov rdx, 1024       ; Max string length\n");
+                            text_section.push_str("    syscall\n\n");
                         } else {
                             panic!("Undefined variable: {}", name);
                         }
@@ -363,17 +307,17 @@ pub fn generate_nasm(exprs: &Vec<Expr>) -> String {
                     },
                     Expr::BinaryOp { op, left, right } => {
                         // Handle string concatenation
-                        if *op == BinOp::Add && (is_string_expr(left, &constants) || is_string_expr(right, &constants)) {
+                        if *op == BinOp::Add && (is_string_expr(left, &constants, &variables) || is_string_expr(right, &constants, &variables)) {
                             // String concatenation
                             text_section.push_str("    ; String concatenation\n");
                             text_section.push_str("    mov rdi, str_buffer  ; Destination buffer\n");
                             text_section.push_str("    xor rcx, rcx         ; Reset counter\n\n");
                             
                             // Generate string concatenation code for left operand
-                            generate_string_concat(left, &mut text_section, &constants, &string_labels, &mut data_section, &mut string_counter);
+                            generate_string_concat(left, &mut text_section, &constants, &variables, &string_labels, &mut data_section, &mut string_counter);
                             
                             // Generate string concatenation code for right operand
-                            generate_string_concat(right, &mut text_section, &constants, &string_labels, &mut data_section, &mut string_counter);
+                            generate_string_concat(right, &mut text_section, &constants, &variables, &string_labels, &mut data_section, &mut string_counter);
                             
                             // Add newline and null terminator
                             text_section.push_str("    mov byte [rdi], 10   ; Add newline\n");
@@ -390,7 +334,7 @@ pub fn generate_nasm(exprs: &Vec<Expr>) -> String {
                         } else {
                             // Regular numeric expression
                             text_section.push_str("    ; Print numeric expression result\n");
-                            generate_expression_code(&**inner, &mut text_section, &constants);
+                            generate_expression_code(&**inner, &mut text_section, &constants, &variables);
                             text_section.push_str("    push rax\n");
                             text_section.push_str("    call print_number\n");
                             text_section.push_str("    add rsp, 8\n\n");
@@ -399,7 +343,7 @@ pub fn generate_nasm(exprs: &Vec<Expr>) -> String {
                     _ => {
                         // Handle complex expressions (including binary operations)
                         text_section.push_str("    ; Print expression result\n");
-                        generate_expression_code(&**inner, &mut text_section, &constants);
+                        generate_expression_code(&**inner, &mut text_section, &constants, &variables);
                         text_section.push_str("    push rax\n");
                         text_section.push_str("    call print_number\n");
                         text_section.push_str("    add rsp, 8\n\n");
@@ -413,29 +357,46 @@ pub fn generate_nasm(exprs: &Vec<Expr>) -> String {
                     text_section.push_str(&format!("    mov rdi, {}\n", n));
                     text_section.push_str("    syscall\n\n");
                 } else if let Expr::Variable(name) = &**code {
-                    if let Some(value) = constants.get(name) {
-                        match value {
-                            ConstValue::Number(n) => {
-                                text_section.push_str(&format!("    ; Exit program with constant {}\n", name));
-                                text_section.push_str("    mov rax, 60         ; sys_exit\n");
-                                text_section.push_str(&format!("    mov rdi, {}\n", n));
-                                text_section.push_str("    syscall\n\n");
-                            },
-                            ConstValue::Boolean(b) => {
-                                text_section.push_str(&format!("    ; Exit program with boolean constant {}\n", name));
-                                text_section.push_str("    mov rax, 60         ; sys_exit\n");
-                                text_section.push_str(&format!("    mov rdi, {}\n", if *b { 1 } else { 0 }));
-                                text_section.push_str("    syscall\n\n");
-                            },
-                            _ => panic!("Cannot use non-numeric constant in exit code: {}", name),
+                    if constants.contains_key(name) || variables.contains_key(name) {
+                        text_section.push_str(&format!("    ; Exit program with identifier {}\n", name));
+                        text_section.push_str("    mov rax, 60         ; sys_exit\n");
+                        
+                        // Generate code to get the value
+                        text_section.push_str(&format!("    ; Load value of {}\n", name));
+                        if let Some(value) = constants.get(name) {
+                            match value {
+                                ConstValue::Number(n) => {
+                                    text_section.push_str(&format!("    mov rdi, {}\n", n));
+                                },
+                                ConstValue::Boolean(b) => {
+                                    text_section.push_str(&format!("    mov rdi, {}\n", if *b { 1 } else { 0 }));
+                                },
+                                _ => {
+                                    text_section.push_str("    mov rdi, 0      ; Non-numeric value defaults to 0\n");
+                                },
+                            }
+                        } else if let Some(value) = variables.get(name) {
+                            match value {
+                                ConstValue::Number(n) => {
+                                    text_section.push_str(&format!("    mov rdi, {}\n", n));
+                                },
+                                ConstValue::Boolean(b) => {
+                                    text_section.push_str(&format!("    mov rdi, {}\n", if *b { 1 } else { 0 }));
+                                },
+                                _ => {
+                                    text_section.push_str("    mov rdi, 0      ; Non-numeric value defaults to 0\n");
+                                },
+                            }
                         }
+                        
+                        text_section.push_str("    syscall\n\n");
                     } else {
                         panic!("Undefined variable in exit: {}", name);
                     }
                 } else {
                     // Handle expressions in exit code
                     text_section.push_str("    ; Exit program with expression result\n");
-                    generate_expression_code(&**code, &mut text_section, &constants);
+                    generate_expression_code(&**code, &mut text_section, &constants, &variables);
                     text_section.push_str("    mov rdi, rax        ; Move result to exit code\n");
                     text_section.push_str("    mov rax, 60         ; sys_exit\n");
                     text_section.push_str("    syscall\n\n");
@@ -448,7 +409,7 @@ pub fn generate_nasm(exprs: &Vec<Expr>) -> String {
                 }
                 
                 // Evaluate the constant expression
-                let const_value = evaluate_constant_expr(value, &constants);
+                let const_value = evaluate_constant_expr(value, &constants, &variables);
                 
                 // Add the constant to our map and generate appropriate code based on type
                 match const_value {
@@ -510,6 +471,227 @@ pub fn generate_nasm(exprs: &Vec<Expr>) -> String {
                     },
                 }
             },
+            Expr::Let { name, value } => {
+                // Check if variable already exists as a constant or variable
+                if constants.contains_key(name) {
+                    panic!("Cannot declare variable '{}', a constant with the same name already exists", name);
+                }
+                if variables.contains_key(name) {
+                    panic!("Variable '{}' already defined", name);
+                }
+                
+                // Evaluate the variable expression
+                let var_value = evaluate_constant_expr(value, &constants, &variables);
+                
+                // Add the variable to our map and generate appropriate code based on type
+                match var_value {
+                    ConstValue::Number(n) => {
+                        // Add a string representation for printing
+                        let var_label = get_var_label(name, None);
+                        let value_str = n.to_string();
+                        data_section.push_str(&format!("{} db \"{}\", 10, 0\n", var_label, value_str));
+                        
+                        variables.insert(name.clone(), ConstValue::Number(n));
+                        text_section.push_str(&format!("    ; Variable {} = {}\n", name, n));
+                        
+                        // For variables, we need to store the memory address
+                        bss_section.push_str(&format!("var_mem_{}: resq 1  ; Memory for variable {}\n", name, name));
+                        text_section.push_str(&format!("    mov qword [var_mem_{}], {}\n", name, n));
+                    },
+                    ConstValue::Float(f) => {
+                        // Add string representation to data section for string operations
+                        let var_label = get_var_label(name, None);
+                        let float_label = get_var_label(name, Some("_float"));
+                        let float_str = f.to_string();
+                        
+                        // Add both labels to data section
+                        data_section.push_str(&format!("{} db \"{}\", 10, 0\n", var_label, float_str));
+                        data_section.push_str(&format!("{} db \"{}\", 10, 0\n", float_label, float_str));
+                        
+                        variables.insert(name.clone(), ConstValue::Float(f));
+                        text_section.push_str(&format!("    ; Variable {} = {}\n", name, f));
+                        
+                        // Convert to integer representation for storage
+                        let int_val = (f * 100.0) as i64;
+                        bss_section.push_str(&format!("var_mem_{}: resq 1  ; Memory for variable {}\n", name, name));
+                        text_section.push_str(&format!("    mov qword [var_mem_{}], {}\n", name, int_val));
+                    },
+                    ConstValue::String(s) => {
+                        // Add string to data section
+                        let var_label = get_var_label(name, None);
+                        data_section.push_str(&format!("{} db \"{}\", 10, 0\n", var_label, s));
+                        
+                        // Store in variables map
+                        variables.insert(name.clone(), ConstValue::String(s.clone()));
+                        text_section.push_str(&format!("    ; Variable {} = \"{}\"\n", name, s));
+                        
+                        // For strings store the pointer to the string
+                        bss_section.push_str(&format!("var_mem_{}: resq 1  ; Memory for variable {}\n", name, name));
+                        text_section.push_str(&format!("    mov qword [var_mem_{}], {}\n", name, var_label));
+                    },
+                    ConstValue::Boolean(b) => {
+                        // Add a string representation for printing
+                        let var_label = get_var_label(name, None);
+                        let value_str = if b { "true" } else { "false" };
+                        data_section.push_str(&format!("{} db \"{}\", 10, 0\n", var_label, value_str));
+                        
+                        variables.insert(name.clone(), ConstValue::Boolean(b));
+                        text_section.push_str(&format!("    ; Variable {} = {}\n", name, b));
+                        
+                        // Store boolean as 0 or 1
+                        bss_section.push_str(&format!("var_mem_{}: resq 1  ; Memory for variable {}\n", name, name));
+                        text_section.push_str(&format!("    mov qword [var_mem_{}], {}\n", name, if b { 1 } else { 0 }));
+                    },
+                    ConstValue::Array(values) => {
+                        // Add a label for the array
+                        let var_label = get_var_label(name, Some("_label"));
+                        data_section.push_str(&format!("{} db \"[Array]\", 10, 0\n", var_label));
+                        
+                        variables.insert(name.clone(), ConstValue::Array(values.clone()));
+                        text_section.push_str(&format!("    ; Variable {} = [array with {} elements]\n", name, values.len()));
+                        
+                        // For arrays store a reference 
+                        bss_section.push_str(&format!("var_mem_{}: resq 1  ; Memory for variable {}\n", name, name));
+                        text_section.push_str(&format!("    mov qword [var_mem_{}], {}\n", name, var_label));
+                    },
+                    ConstValue::Null => {
+                        // Add a label for null
+                        let var_label = get_var_label(name, None);
+                        data_section.push_str(&format!("{} db \"null\", 10, 0\n", var_label));
+                        
+                        variables.insert(name.clone(), ConstValue::Null);
+                        text_section.push_str(&format!("    ; Variable {} = null\n", name));
+                        
+                        // Store null as 0
+                        bss_section.push_str(&format!("var_mem_{}: resq 1  ; Memory for variable {}\n", name, name));
+                        text_section.push_str(&format!("    mov qword [var_mem_{}], 0\n", name));
+                    },
+                }
+            },
+            Expr::Assign { name, value } => {
+                // Check if its a constant
+                if constants.contains_key(name) {
+                    panic!("Cannot reassign constant '{}'", name);
+                }
+                
+                // Check if the variable exists
+                if !variables.contains_key(name) {
+                    panic!("Variable '{}' not defined before assignment", name);
+                }
+                
+                // Evaluate the new value
+                let new_value = evaluate_constant_expr(value, &constants, &variables);
+                
+                // Update both the variable storage and the print label
+                match new_value {
+                    ConstValue::Number(n) => {
+                        // Update the string representation for printing
+                        let var_label = get_var_label(name, None);
+                        let value_str = n.to_string();
+                        
+                        // Need to add a new label with updated value
+                        let new_label = format!("{}_updated_{}", var_label, string_counter);
+                        string_counter += 1;
+                        data_section.push_str(&format!("{} db \"{}\", 10, 0\n", new_label, value_str));
+                        
+                        // Update the variables map
+                        variables.insert(name.clone(), ConstValue::Number(n));
+                        text_section.push_str(&format!("    ; Assign {} = {}\n", name, n));
+                        
+                        // Update the memory location
+                        text_section.push_str(&format!("    mov qword [var_mem_{}], {}\n", name, n));
+                        
+                        // Update the print string pointer
+                        text_section.push_str(&format!("    mov qword [{}], {}\n", var_label, new_label));
+                    },
+                    ConstValue::Float(f) => {
+                        // Update string representation for printing
+                        let var_label = get_var_label(name, None);
+                        let float_str = f.to_string();
+                        
+                        // Add updated labels to data section
+                        let new_label = format!("{}_updated_{}", var_label, string_counter);
+                        string_counter += 1;
+                        data_section.push_str(&format!("{} db \"{}\", 10, 0\n", new_label, float_str));
+                        
+                        variables.insert(name.clone(), ConstValue::Float(f));
+                        text_section.push_str(&format!("    ; Assign {} = {}\n", name, f));
+                        
+                        // Convert to integer representation for storage (scaled by 100)
+                        let int_val = (f * 100.0) as i64;
+                        text_section.push_str(&format!("    mov qword [var_mem_{}], {}\n", name, int_val));
+                        
+                        // Update the print string pointer
+                        text_section.push_str(&format!("    mov qword [{}], {}\n", var_label, new_label));
+                    },
+                    ConstValue::String(s) => {
+                        // Add updated string to data section
+                        let var_label = get_var_label(name, None);
+                        let new_label = format!("{}_updated_{}", var_label, string_counter);
+                        string_counter += 1;
+                        data_section.push_str(&format!("{} db \"{}\", 10, 0\n", new_label, s));
+                        
+                        // Update in variables map
+                        variables.insert(name.clone(), ConstValue::String(s.clone()));
+                        text_section.push_str(&format!("    ; Assign {} = \"{}\"\n", name, s));
+                        
+                        // Update the memory location with new string pointer
+                        text_section.push_str(&format!("    mov qword [var_mem_{}], {}\n", name, new_label));
+                        
+                        // Update the print string pointer
+                        text_section.push_str(&format!("    mov qword [{}], {}\n", var_label, new_label));
+                    },
+                    ConstValue::Boolean(b) => {
+                        // Update string representation for printing
+                        let var_label = get_var_label(name, None);
+                        let value_str = if b { "true" } else { "false" };
+                        let new_label = format!("{}_updated_{}", var_label, string_counter);
+                        string_counter += 1;
+                        data_section.push_str(&format!("{} db \"{}\", 10, 0\n", new_label, value_str));
+                        
+                        variables.insert(name.clone(), ConstValue::Boolean(b));
+                        text_section.push_str(&format!("    ; Assign {} = {}\n", name, b));
+                        
+                        // Update the memory location
+                        text_section.push_str(&format!("    mov qword [var_mem_{}], {}\n", name, if b { 1 } else { 0 }));
+                        
+                        // Update the print string pointer
+                        text_section.push_str(&format!("    mov qword [{}], {}\n", var_label, new_label));
+                    },
+                    ConstValue::Array(values) => {
+                        // Update the label for the array
+                        let var_label = get_var_label(name, Some("_label"));
+                        let new_label = format!("{}_updated_{}", var_label, string_counter);
+                        string_counter += 1;
+                        data_section.push_str(&format!("{} db \"[Array]\", 10, 0\n", new_label));
+                        
+                        variables.insert(name.clone(), ConstValue::Array(values.clone()));
+                        text_section.push_str(&format!("    ; Assign {} = [array with {} elements]\n", name, values.len()));
+                        
+                        // Update the memory location
+                        text_section.push_str(&format!("    mov qword [var_mem_{}], {}\n", name, new_label));
+                        
+                        // Update the print string pointer
+                        text_section.push_str(&format!("    mov qword [{}], {}\n", var_label, new_label));
+                    },
+                    ConstValue::Null => {
+                        // Update the label for null
+                        let var_label = get_var_label(name, None);
+                        let new_label = format!("{}_updated_{}", var_label, string_counter);
+                        string_counter += 1;
+                        data_section.push_str(&format!("{} db \"null\", 10, 0\n", new_label));
+                        
+                        variables.insert(name.clone(), ConstValue::Null);
+                        text_section.push_str(&format!("    ; Assign {} = null\n", name));
+                        
+                        // Update the memory location
+                        text_section.push_str(&format!("    mov qword [var_mem_{}], 0\n", name));
+                        
+                        // Update the print string pointer
+                        text_section.push_str(&format!("    mov qword [{}], {}\n", var_label, new_label));
+                    },
+                }
+            },
             _ => {}
         }
     }
@@ -532,6 +714,8 @@ fn collect_string_literals(expr: &Expr, counter: &mut usize, string_labels: &mut
         Expr::Print(inner) => collect_string_literals(inner, counter, string_labels, data_section),
         Expr::Exit(inner) => collect_string_literals(inner, counter, string_labels, data_section),
         Expr::Const { value, .. } => collect_string_literals(value, counter, string_labels, data_section),
+        Expr::Let { value, .. } => collect_string_literals(value, counter, string_labels, data_section),
+        Expr::Assign { value, .. } => collect_string_literals(value, counter, string_labels, data_section),
         Expr::BinaryOp { left, right, .. } => {
             collect_string_literals(left, counter, string_labels, data_section);
             collect_string_literals(right, counter, string_labels, data_section);
@@ -546,8 +730,9 @@ fn collect_string_literals(expr: &Expr, counter: &mut usize, string_labels: &mut
 }
 
 // Print an array element
-fn print_array_element(elem: &Expr, text_section: &mut String, _constants: &HashMap<String, ConstValue>, 
-                      string_labels: &HashMap<String, String>, data_section: &mut String, counter: &mut usize) {
+fn print_array_element(elem: &Expr, text_section: &mut String, constants: &HashMap<String, ConstValue>,
+                      variables: &HashMap<String, ConstValue>, string_labels: &HashMap<String, String>,
+                      data_section: &mut String, counter: &mut usize) {
     match elem {
         Expr::StringLiteral(s) => {
             // Find the label for this string
@@ -595,6 +780,106 @@ fn print_array_element(elem: &Expr, text_section: &mut String, _constants: &Hash
             text_section.push_str("    mov rdx, 4          ; 'null'\n");
             text_section.push_str("    syscall\n\n");
         },
+        Expr::Variable(name) => {
+            text_section.push_str(&format!("    ; Print array element (variable): {}\n", name));
+            
+            // Check if it's a constant or variable
+            if let Some(value) = constants.get(name) {
+                match value {
+                    ConstValue::Number(n) => {
+                        let num_str = n.to_string();
+                        let num_label = format!("array_num_{}", counter);
+                        *counter += 1;
+                        data_section.push_str(&format!("{} db \"{}\", 0\n", num_label, num_str));
+                        
+                        text_section.push_str("    mov rax, 1          ; sys_write\n");
+                        text_section.push_str("    mov rdi, 1          ; stdout\n");
+                        text_section.push_str(&format!("    mov rsi, {}\n", num_label));
+                        text_section.push_str(&format!("    mov rdx, {}\n", num_str.len()));
+                        text_section.push_str("    syscall\n\n");
+                    },
+                    ConstValue::String(s) => {
+                        let label = get_var_label(name, None);
+                        
+                        text_section.push_str("    mov rax, 1          ; sys_write\n");
+                        text_section.push_str("    mov rdi, 1          ; stdout\n");
+                        text_section.push_str(&format!("    mov rsi, {}\n", label));
+                        text_section.push_str(&format!("    mov rdx, {}\n", s.len()));
+                        text_section.push_str("    syscall\n\n");
+                    },
+                    ConstValue::Boolean(b) => {
+                        text_section.push_str("    mov rax, 1          ; sys_write\n");
+                        text_section.push_str("    mov rdi, 1          ; stdout\n");
+                        if *b {
+                            text_section.push_str("    mov rsi, true_str\n");
+                            text_section.push_str("    mov rdx, 4       ; 'true'\n");
+                        } else {
+                            text_section.push_str("    mov rsi, false_str\n");
+                            text_section.push_str("    mov rdx, 5       ; 'false'\n");
+                        }
+                        text_section.push_str("    syscall\n\n");
+                    },
+                    _ => {
+                        // For other types, use a generic approach
+                        let label = get_var_label(name, None);
+                        
+                        text_section.push_str("    mov rax, 1          ; sys_write\n");
+                        text_section.push_str("    mov rdi, 1          ; stdout\n");
+                        text_section.push_str(&format!("    mov rsi, {}\n", label));
+                        text_section.push_str("    mov rdx, 10         ; Assume max 10 chars\n");
+                        text_section.push_str("    syscall\n\n");
+                    }
+                }
+            } else if let Some(value) = variables.get(name) {
+                match value {
+                    ConstValue::Number(n) => {
+                        let num_str = n.to_string();
+                        let num_label = format!("array_num_{}", counter);
+                        *counter += 1;
+                        data_section.push_str(&format!("{} db \"{}\", 0\n", num_label, num_str));
+                        
+                        text_section.push_str("    mov rax, 1          ; sys_write\n");
+                        text_section.push_str("    mov rdi, 1          ; stdout\n");
+                        text_section.push_str(&format!("    mov rsi, {}\n", num_label));
+                        text_section.push_str(&format!("    mov rdx, {}\n", num_str.len()));
+                        text_section.push_str("    syscall\n\n");
+                    },
+                    ConstValue::String(s) => {
+                        let label = get_var_label(name, None);
+                        
+                        text_section.push_str("    mov rax, 1          ; sys_write\n");
+                        text_section.push_str("    mov rdi, 1          ; stdout\n");
+                        text_section.push_str(&format!("    mov rsi, {}\n", label));
+                        text_section.push_str(&format!("    mov rdx, {}\n", s.len()));
+                        text_section.push_str("    syscall\n\n");
+                    },
+                    ConstValue::Boolean(b) => {
+                        text_section.push_str("    mov rax, 1          ; sys_write\n");
+                        text_section.push_str("    mov rdi, 1          ; stdout\n");
+                        if *b {
+                            text_section.push_str("    mov rsi, true_str\n");
+                            text_section.push_str("    mov rdx, 4       ; 'true'\n");
+                        } else {
+                            text_section.push_str("    mov rsi, false_str\n");
+                            text_section.push_str("    mov rdx, 5       ; 'false'\n");
+                        }
+                        text_section.push_str("    syscall\n\n");
+                    },
+                    _ => {
+                        // For other types, use a generic approach
+                        let label = get_var_label(name, None);
+                        
+                        text_section.push_str("    mov rax, 1          ; sys_write\n");
+                        text_section.push_str("    mov rdi, 1          ; stdout\n");
+                        text_section.push_str(&format!("    mov rsi, {}\n", label));
+                        text_section.push_str("    mov rdx, 20         ; Assume max 20 chars\n");
+                        text_section.push_str("    syscall\n\n");
+                    }
+                }
+            } else {
+                panic!("Undefined variable in array: {}", name);
+            }
+        },
         _ => {
             panic!("Unsupported array element type");
         }
@@ -602,11 +887,13 @@ fn print_array_element(elem: &Expr, text_section: &mut String, _constants: &Hash
 }
 
 // Function to check if an expression will evaluate to a string
-fn is_string_expr(expr: &Expr, constants: &HashMap<String, ConstValue>) -> bool {
+fn is_string_expr(expr: &Expr, constants: &HashMap<String, ConstValue>, variables: &HashMap<String, ConstValue>) -> bool {
     match expr {
         Expr::StringLiteral(_) => true,
         Expr::Variable(name) => {
             if let Some(value) = constants.get(name) {
+                matches!(value, ConstValue::String(_))
+            } else if let Some(value) = variables.get(name) {
                 matches!(value, ConstValue::String(_))
             } else {
                 false
@@ -614,7 +901,7 @@ fn is_string_expr(expr: &Expr, constants: &HashMap<String, ConstValue>) -> bool 
         },
         Expr::BinaryOp { op, left, right } => {
             if *op == BinOp::Add {
-                is_string_expr(left, constants) || is_string_expr(right, constants)
+                is_string_expr(left, constants, variables) || is_string_expr(right, constants, variables)
             } else {
                 false
             }
@@ -625,7 +912,8 @@ fn is_string_expr(expr: &Expr, constants: &HashMap<String, ConstValue>) -> bool 
 
 // Generate code for string concatenation
 fn generate_string_concat(expr: &Expr, text_section: &mut String, 
-                        constants: &HashMap<String, ConstValue>, 
+                        constants: &HashMap<String, ConstValue>,
+                        variables: &HashMap<String, ConstValue>,
                         string_labels: &HashMap<String, String>,
                         data_section: &mut String,
                         counter: &mut usize) {
@@ -672,8 +960,50 @@ fn generate_string_concat(expr: &Expr, text_section: &mut String,
             if let Some(value) = constants.get(name) {
                 match value {
                     ConstValue::Number(n) => {
-                        text_section.push_str(&format!("    ; Append numeric variable: {}\n", name));
+                        text_section.push_str(&format!("    ; Append numeric constant: {}\n", name));
                         text_section.push_str(&format!("    mov rax, {}\n", n));
+                        text_section.push_str("    call append_number\n");
+                    },
+                    ConstValue::Float(_) => {
+                        text_section.push_str(&format!("    ; Append float constant: {}\n", name));
+                        let var_label = get_var_label(name, Some("_float"));
+                        
+                        text_section.push_str(&format!("    mov rsi, {}\n", var_label));
+                        text_section.push_str("    call append_string\n");
+                    },
+                    ConstValue::String(_) => {
+                        text_section.push_str(&format!("    ; Append string constant: {}\n", name));
+                        let var_label = get_var_label(name, None);
+                        text_section.push_str(&format!("    mov rsi, {}\n", var_label));
+                        text_section.push_str("    call append_string\n");
+                    },
+                    ConstValue::Boolean(b) => {
+                        text_section.push_str(&format!("    ; Append boolean constant: {}\n", name));
+                        if *b {
+                            text_section.push_str("    mov rsi, true_str\n");
+                        } else {
+                            text_section.push_str("    mov rsi, false_str\n");
+                        }
+                        text_section.push_str("    call append_string\n");
+                    },
+                    ConstValue::Array(_) => {
+                        text_section.push_str(&format!("    ; Append array constant: {}\n", name));
+                        let array_label = get_var_label(name, Some("_label"));
+                        text_section.push_str(&format!("    mov rsi, {}\n", array_label));
+                        text_section.push_str("    call append_string\n");
+                    },
+                    ConstValue::Null => {
+                        text_section.push_str(&format!("    ; Append null constant: {}\n", name));
+                        text_section.push_str("    mov rsi, null_str\n");
+                        text_section.push_str("    call append_string\n");
+                    }
+                }
+            } else if let Some(value) = variables.get(name) {
+                match value {
+                    ConstValue::Number(n) => {
+                        text_section.push_str(&format!("    ; Append numeric variable: {}\n", name));
+                        // For variables, we need to load from memory
+                        text_section.push_str(&format!("    mov rax, [var_mem_{}]\n", name));
                         text_section.push_str("    call append_number\n");
                     },
                     ConstValue::Float(_) => {
@@ -715,20 +1045,20 @@ fn generate_string_concat(expr: &Expr, text_section: &mut String,
             }
         },
         Expr::BinaryOp { op, left, right } => {
-            if *op == BinOp::Add && (is_string_expr(left, constants) || is_string_expr(right, constants)) {
+            if *op == BinOp::Add && (is_string_expr(left, constants, variables) || is_string_expr(right, constants, variables)) {
                 // If this is a string concatenation, process each part separately
-                generate_string_concat(left, text_section, constants, string_labels, data_section, counter);
-                generate_string_concat(right, text_section, constants, string_labels, data_section, counter);
+                generate_string_concat(left, text_section, constants, variables, string_labels, data_section, counter);
+                generate_string_concat(right, text_section, constants, variables, string_labels, data_section, counter);
             } else {
                 // This is a numeric expression - evaluate it and convert to string
                 text_section.push_str("    ; Append result of numeric expression\n");
                 
                 // Save current buffer position
-                text_section.push_str("    push rdi\n");
+                                text_section.push_str("    push rdi\n");
                 text_section.push_str("    push rcx\n");
                 
                 // Evaluate the expression
-                generate_expression_code(expr, text_section, constants);
+                generate_expression_code(expr, text_section, constants, variables);
                 
                 // RAX now contains the result, call append_number
                 text_section.push_str("    push rax\n");
@@ -747,7 +1077,7 @@ fn generate_string_concat(expr: &Expr, text_section: &mut String,
 }
 
 // Generate code for expressions
-fn generate_expression_code(expr: &Expr, text_section: &mut String, constants: &HashMap<String, ConstValue>) {
+fn generate_expression_code(expr: &Expr, text_section: &mut String, constants: &HashMap<String, ConstValue>, variables: &HashMap<String, ConstValue>) {
     match expr {
         Expr::Number(n) => {
             text_section.push_str(&format!("    ; Load number: {}\n", n));
@@ -771,22 +1101,38 @@ fn generate_expression_code(expr: &Expr, text_section: &mut String, constants: &
             if let Some(value) = constants.get(name) {
                 match value {
                     ConstValue::Number(n) => {
-                        text_section.push_str(&format!("    ; Load numeric variable: {}\n", name));
+                        text_section.push_str(&format!("    ; Load numeric constant: {}\n", name));
                         text_section.push_str(&format!("    mov rax, {}\n", n));
                     },
                     ConstValue::Float(f) => {
                         // Similar to above, we'll use integers for simplicity
                         let int_val = (*f * 100.0) as i64;
-                        text_section.push_str(&format!("    ; Load float variable: {} (scaled as integer)\n", name));
+                        text_section.push_str(&format!("    ; Load float constant: {} (scaled as integer)\n", name));
                         text_section.push_str(&format!("    mov rax, {}\n", int_val));
                     },
                     ConstValue::Boolean(b) => {
-                        text_section.push_str(&format!("    ; Load boolean variable: {}\n", name));
+                        text_section.push_str(&format!("    ; Load boolean constant: {}\n", name));
                         if *b {
                             text_section.push_str("    mov rax, 1\n");
                         } else {
                             text_section.push_str("    mov rax, 0\n");
                         }
+                    },
+                    _ => panic!("Cannot use non-numeric constant in expression: {}", name),
+                }
+            } else if let Some(value) = variables.get(name) {
+                match value {
+                    ConstValue::Number(_) => {
+                        text_section.push_str(&format!("    ; Load numeric variable: {}\n", name));
+                        text_section.push_str(&format!("    mov rax, [var_mem_{}]\n", name));
+                    },
+                    ConstValue::Float(_) => {
+                        text_section.push_str(&format!("    ; Load float variable: {} (scaled as integer)\n", name));
+                        text_section.push_str(&format!("    mov rax, [var_mem_{}]\n", name));
+                    },
+                    ConstValue::Boolean(_) => {
+                        text_section.push_str(&format!("    ; Load boolean variable: {}\n", name));
+                        text_section.push_str(&format!("    mov rax, [var_mem_{}]\n", name));
                     },
                     _ => panic!("Cannot use non-numeric variable in expression: {}", name),
                 }
@@ -796,16 +1142,16 @@ fn generate_expression_code(expr: &Expr, text_section: &mut String, constants: &
         },
         Expr::BinaryOp { op, left, right } => {
             // Check if this is a string operation
-            if *op == BinOp::Add && (is_string_expr(left, constants) || is_string_expr(right, constants)) {
+            if *op == BinOp::Add && (is_string_expr(left, constants, variables) || is_string_expr(right, constants, variables)) {
                 panic!("String operations should be handled by generate_string_concat");
             }
             
             // First, evaluate the right expression and push result to stack
-            generate_expression_code(right, text_section, constants);
+            generate_expression_code(right, text_section, constants, variables);
             text_section.push_str("    push rax\n");
             
             // Then, evaluate the left expression (result in RAX)
-            generate_expression_code(left, text_section, constants);
+            generate_expression_code(left, text_section, constants, variables);
             
             // Pop right result into RBX
             text_section.push_str("    pop rbx\n");
@@ -856,7 +1202,7 @@ fn generate_expression_code(expr: &Expr, text_section: &mut String, constants: &
 }
 
 // Evaluate constant expressions at compile time
-fn evaluate_constant_expr(expr: &Expr, constants: &HashMap<String, ConstValue>) -> ConstValue {
+fn evaluate_constant_expr(expr: &Expr, constants: &HashMap<String, ConstValue>, variables: &HashMap<String, ConstValue>) -> ConstValue {
     match expr {
         Expr::Number(n) => ConstValue::Number(*n),
         Expr::Float(f) => ConstValue::Float(*f),
@@ -865,20 +1211,22 @@ fn evaluate_constant_expr(expr: &Expr, constants: &HashMap<String, ConstValue>) 
         Expr::Null => ConstValue::Null,
         Expr::Array(elements) => {
             let evaluated_elements = elements.iter()
-                .map(|e| evaluate_constant_expr(e, constants))
+                .map(|e| evaluate_constant_expr(e, constants, variables))
                 .collect::<Vec<_>>();
             ConstValue::Array(evaluated_elements)
         },
         Expr::Variable(name) => {
             if let Some(value) = constants.get(name) {
                 value.clone()
+            } else if let Some(value) = variables.get(name) {
+                value.clone()
             } else {
                 panic!("Undefined variable in constant expression: {}", name);
             }
         },
         Expr::BinaryOp { op, left, right } => {
-            let left_val = evaluate_constant_expr(left, constants);
-            let right_val = evaluate_constant_expr(right, constants);
+            let left_val = evaluate_constant_expr(left, constants, variables);
+            let right_val = evaluate_constant_expr(right, constants, variables);
             
             match (op, &left_val, &right_val) {
                 // Integer arithmetic
