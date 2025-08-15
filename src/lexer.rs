@@ -106,7 +106,7 @@ pub fn lex(source: &str) -> Vec<Token> {
             },
             '/' => {
                 chars.next();
-				if chars.peek() == Some(&/){
+				if chars.peek() == Some(&'/'){
 					chars.next();
 					while let Some(&c) = chars.peek() {
 						if c == '\n' {
