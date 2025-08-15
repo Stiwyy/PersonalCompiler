@@ -1,1 +1,4 @@
 exit(0);
+const string1 = "test\n";
+const string2 = 'example';
+console.print(string1 + string2);

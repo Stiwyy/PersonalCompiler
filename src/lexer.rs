@@ -56,15 +56,31 @@ pub fn lex(source: &str) -> Vec<Token> {
                 tokens.push(Token::Number(number));
             },
             
-            // Strings
-            '"' => {
+            // Strings support both single and double quotes
+            '"' | '\'' => {
+                let quote_type = c; // Remember which quote type started the string
                 chars.next(); // Skip opening quote
                 let mut s = String::new();
                 
                 while let Some(&c) = chars.peek() {
-                    if c == '"' {
+                    if c == quote_type {
                         chars.next(); // Skip closing quote
                         break;
+                    } else if c == '\\' {
+                        // Handle escape sequences
+                        chars.next(); 
+                        if let Some(&next_c) = chars.peek() {
+                            match next_c {
+                                'n' => s.push('\n'),
+                                't' => s.push('\t'),
+                                'r' => s.push('\r'),
+                                '\\' => s.push('\\'),
+                                '\'' => s.push('\''),
+                                '"' => s.push('"'),
+                                _ => s.push(next_c), 
+                            }
+                            chars.next();
+                        }
                     } else {
                         s.push(c);
                         chars.next();
