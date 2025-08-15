@@ -39,6 +39,10 @@ ld -m elf_x86_64 -o build/out build/out.o && \
 
 Currently, the SPP language supports:
 
+### Comments
+- Single line comments (//)
+- Mutli line comments (/* */)
+
 ### Data Types
 - Integers
 - Floating-point numbers
