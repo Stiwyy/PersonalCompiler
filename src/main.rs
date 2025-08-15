@@ -75,6 +75,10 @@ fn main() {
     while !parser.is_finished() {
         if let Some(const_expr) = parser.parse_const_declaration() {
             exprs.push(const_expr);
+        } else if let Some(let_expr) = parser.parse_let_declaration() {
+            exprs.push(let_expr);
+        } else if let Some(assign_expr) = parser.parse_assignment() {
+            exprs.push(assign_expr);
         } else if let Some(print_expr) = parser.parse_console_print_expr() {
             exprs.push(print_expr);
         } else if let Some(exit_expr) = parser.parse_exit_expr() {
@@ -97,14 +101,16 @@ fn main() {
 
     // Create a constants map to track defined constants
     let mut constants = HashMap::new();
+    // Create a variables map to track defined variables
+    let mut variables = HashMap::new();
     
     for expr in &exprs {
-        let result = eval(&expr, &mut constants);
+        let result = eval(&expr, &mut constants, &mut variables);
         println!("Evaluation result: {}", result);
     }
 }
 
-fn eval(expr: &Expr, constants: &mut HashMap<String, ConstValue>) -> ConstValue {
+fn eval(expr: &Expr, constants: &mut HashMap<String, ConstValue>, variables: &mut HashMap<String, ConstValue>) -> ConstValue {
     match expr {
         Expr::Number(n) => ConstValue::Number(*n),
         Expr::Float(f) => ConstValue::Float(*f),
@@ -114,13 +120,13 @@ fn eval(expr: &Expr, constants: &mut HashMap<String, ConstValue>) -> ConstValue 
         Expr::Array(elements) => {
             let mut values = Vec::new();
             for elem in elements {
-                values.push(eval(elem, constants));
+                values.push(eval(elem, constants, variables));
             }
             ConstValue::Array(values)
         },
         Expr::BinaryOp { op, left, right } => {
-            let l = eval(left, constants);
-            let r = eval(right, constants);
+            let l = eval(left, constants, variables);
+            let r = eval(right, constants, variables);
             
             // String concatenation
             match (&l, &r) {
@@ -209,25 +215,55 @@ fn eval(expr: &Expr, constants: &mut HashMap<String, ConstValue>) -> ConstValue 
         },
         Expr::Print(e) => {
             // Handle printing differently based on expression type
-            let value = eval(e, constants);
+            let value = eval(e, constants, variables);
             println!("{}", value);
             value
         },
-        Expr::Exit(e) => eval(e, constants),
+        Expr::Exit(e) => eval(e, constants, variables),
         Expr::Const { name, value } => {
             // Check if constant already exists
             if constants.contains_key(name) {
                 panic!("Error: Constant '{}' already defined", name);
             }
-            let val = eval(value, constants);
+            let val = eval(value, constants, variables);
             constants.insert(name.clone(), val.clone());
             val
         },
+        Expr::Let { name, value } => {
+            // Check if variable already exists as a constant
+            if constants.contains_key(name) {
+                panic!("Error: Cannot declare variable '{}', a constant with the same name already exists", name);
+            }
+            
+            let val = eval(value, constants, variables);
+            // Store the value in the variables map
+            variables.insert(name.clone(), val.clone());
+            val
+        },
+        Expr::Assign { name, value } => {
+            // Check if its a constant
+            if constants.contains_key(name) {
+                panic!("Error: Cannot reassign constant '{}'", name);
+            }
+            
+            // Check if the variable exists
+            if !variables.contains_key(name) {
+                panic!("Error: Variable '{}' not defined before assignment", name);
+            }
+            
+            let val = eval(value, constants, variables);
+            // Update the variable with the new value
+            variables.insert(name.clone(), val.clone());
+            val
+        },
         Expr::Variable(name) => {
-            // Look up the variable
-            constants.get(name)
-                .cloned()
-                .unwrap_or_else(|| panic!("Error: Undefined variable: {}", name))
+            if let Some(val) = constants.get(name) {
+                val.clone()
+            } else if let Some(val) = variables.get(name) {
+                val.clone()
+            } else {
+                panic!("Error: Undefined identifier: {}", name);
+            }
         },
     }
 }
