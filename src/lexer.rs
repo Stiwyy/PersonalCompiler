@@ -106,7 +106,28 @@ pub fn lex(source: &str) -> Vec<Token> {
             },
             '/' => {
                 chars.next();
-                tokens.push(Token::Slash);
+				if chars.peek() == Some(&/){
+					chars.next();
+					while let Some(&c) = chars.peek() {
+						if c == '\n' {
+							break;
+						}
+						chars.next();
+					}
+				} else if chars.peek() == Some(&'*') {
+					chars.next();
+					let mut closed = false;
+					while let Some(&c) = chars.peek(){
+						chars.next();
+						if c == '*' && chars.peek() == Some(&'/') {
+							chars.next();
+							closed = true;
+							break;
+						}
+					}
+				} else {
+					tokens.push(Token::Slash);
+				}
             },
             '=' => {
                 chars.next();
