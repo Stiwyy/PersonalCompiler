@@ -46,7 +46,7 @@ Currently, the SPP language supports:
 ### Data Types
 - Integers
 - Floating-point numbers
-- String literals
+- String literals (With both single- and double quotes)
 - Booleans (true/false)
 - Arrays (mixed types supported)
 - Null values
