@@ -1,3 +1,7 @@
+use std::env;
+use std::path::Path;
+use std::process;
+
 mod lexer;
 mod parser;
 mod ast;
@@ -6,7 +10,6 @@ mod codegen;
 use lexer::lex;
 use parser::Parser;
 use crate::ast::{Expr, BinOp};
-use std::path::Path;
 use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
@@ -42,11 +45,25 @@ impl std::fmt::Display for ConstValue {
 }
 
 fn main() {
-    let source = match std::fs::read_to_string("examples/sample.spp") {
+    // Get command line arguments
+    let args: Vec<String> = env::args().collect();
+    
+    // Check if a file path was provided
+    if args.len() < 2 {
+        eprintln!("Error: No input file specified");
+        eprintln!("Usage: {} <input_file.spp>", args[0]);
+        process::exit(1);
+    }
+    
+    // Use the provided file path
+    let input_path = &args[1];
+    
+    // Read the source file
+    let source = match std::fs::read_to_string(input_path) {
         Ok(content) => content,
         Err(_) => {
-            eprintln!("Error: The file 'examples/sample.spp' could not be found.");
-            return;
+            eprintln!("Error: The file '{}' could not be found or read.", input_path);
+            process::exit(1);
         }
     };
 
@@ -71,12 +88,12 @@ fn main() {
     let output_path = Path::new("build");
     if !output_path.exists() {
         eprintln!("Error: Output directory 'build' does not exist.");
-        return;
+        process::exit(1);
     }
 
     // Generate NASM code for all expressions
     let asm_code = codegen::generate_nasm(&exprs);
-	std::fs::write(Path::new("build/out.asm"), asm_code).expect("Failed to write assembly file");
+    std::fs::write(Path::new("build/out.asm"), asm_code).expect("Failed to write assembly file");
 
     // Create a constants map to track defined constants
     let mut constants = HashMap::new();
