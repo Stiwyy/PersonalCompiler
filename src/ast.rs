@@ -15,16 +15,21 @@ pub enum Expr {
         name: String,
         value: Box<Expr>,
     },
-	Let {
-		name: String,
-		value: Box<Expr>,
-	},
-	Assign {
-		name: String,
-		value: Box<Expr>,
-	},
+    Let {
+        name: String,
+        value: Box<Expr>,
+    },
+    Assign {
+        name: String,
+        value: Box<Expr>,
+    },
     Variable(String),
     Null,
+    If {
+        condition: Box<Expr>,
+        then_branch: Vec<Box<Expr>>,
+        else_branch: Option<Vec<Box<Expr>>>,
+    },
 }
 
 #[derive(PartialEq)]
