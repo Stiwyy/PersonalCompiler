@@ -653,6 +653,75 @@ pub fn generate_nasm(exprs: &Vec<Expr>) -> String {
 										}
 									}
 								},
+								Expr::Assign { name, value } => {
+									if constants.contains_key(name) {
+										panic!("Cannot reassign constant '{}'", name);
+									}
+									
+									if !variables.contains_key(name) {
+										panic!("Variable '{}' not defined before assignment", name);
+									}
+									
+									let new_value = evaluate_constant_expr(value, &constants, &variables);
+									
+									match new_value {
+										ConstValue::Number(n) => {
+											variables.insert(name.clone(), ConstValue::Number(n));
+											text_section.push_str(&format!("    ; Assign {} = {}\n", name, n));
+											
+											text_section.push_str(&format!("    mov qword [var_mem_{}], {}\n", name, n));
+										},
+										ConstValue::Float(f) => {
+											let float_label = get_var_label(name, Some("_float"));
+											let new_label = format!("{}_updated_{}", float_label, string_counter);
+											string_counter += 1;
+											let float_str = f.to_string();
+											data_section.push_str(&format!("{} db \"{}\", 10, 0\n", new_label, float_str));
+											
+											variables.insert(name.clone(), ConstValue::Float(f));
+											text_section.push_str(&format!("    ; Assign {} = {}\n", name, f));
+											
+											let int_val = (f * 100.0) as i64;
+											text_section.push_str(&format!("    mov qword [var_mem_{}], {}\n", name, int_val));
+											
+											text_section.push_str(&format!("    mov qword [var_mem_{}_float], {}\n", name, new_label));
+										},
+										ConstValue::String(s) => {
+											let var_label = get_var_label(name, None);
+											let new_label = format!("{}_updated_{}", var_label, string_counter);
+											string_counter += 1;
+											data_section.push_str(&format!("{} db \"{}\", 10, 0\n", new_label, s));
+											
+											variables.insert(name.clone(), ConstValue::String(s.clone()));
+											text_section.push_str(&format!("    ; Assign {} = \"{}\"\n", name, s));
+											
+											text_section.push_str(&format!("    mov qword [var_mem_{}], {}\n", name, new_label));
+										},
+										ConstValue::Boolean(b) => {
+											variables.insert(name.clone(), ConstValue::Boolean(b));
+											text_section.push_str(&format!("    ; Assign {} = {}\n", name, b));
+											
+											text_section.push_str(&format!("    mov qword [var_mem_{}], {}\n", name, if b { 1 } else { 0 }));
+										},
+										ConstValue::Array(values) => {
+											let var_label = get_var_label(name, Some("_label"));
+											let new_label = format!("{}_updated_{}", var_label, string_counter);
+											string_counter += 1;
+											data_section.push_str(&format!("{} db \"[Array]\", 10, 0\n", new_label));
+											
+											variables.insert(name.clone(), ConstValue::Array(values.clone()));
+											text_section.push_str(&format!("    ; Assign {} = [array with {} elements]\n", name, values.len()));
+											
+											text_section.push_str(&format!("    mov qword [var_mem_{}], {}\n", name, new_label));
+										},
+										ConstValue::Null => {
+											variables.insert(name.clone(), ConstValue::Null);
+											text_section.push_str(&format!("    ; Assign {} = null\n", name));
+											
+											text_section.push_str(&format!("    mov qword [var_mem_{}], 0\n", name));
+										},
+									}
+								},
 							}
 						}
 					},
