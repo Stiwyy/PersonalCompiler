@@ -41,7 +41,7 @@ Currently, the SPP language supports:
 
 ### Comments
 - Single line comments (//)
-- Mutli line comments (/* */)
+- Multi line comments (/* */)
 
 ### Data Types
 - Integers
@@ -64,6 +64,11 @@ Currently, the SPP language supports:
 - Mixed-type operations (e.g., adding strings and numbers)
 
 ### Control Flow
+- **If statements** with condition evaluation
+  - Supports both simple and complex conditions
+  - `else` clauses for alternative execution paths
+  - Nested `if` statements for complex logic
+  - Variable assignments inside conditional blocks
 - Program termination: `exit(code);`
 
 ### Input/Output
@@ -89,6 +94,26 @@ const pi = 3.14159;
 const radius = 5;
 const area = pi * radius * radius;
 console.print("Circle area: " + area);
+
+// If statement example
+let temperature = 22;
+if (temperature > 25) {
+    console.print("It's warm today!");
+} else {
+    console.print("It's a cool day.");
+}
+
+// Nested if example
+let hour = 14;
+if (hour < 12) {
+    console.print("Good morning!");
+} else {
+    if (hour < 18) {
+        console.print("Good afternoon!");
+    } else {
+        console.print("Good evening!");
+    }
+}
 
 exit(0);
 ```
