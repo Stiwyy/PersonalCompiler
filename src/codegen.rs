@@ -451,6 +451,26 @@ pub fn generate_nasm(exprs: &Vec<Expr>) -> String {
 						} else {
 							text_section.push_str(&format!("    jz {}\n", label_end));
 						}
+						//Then branch
+						text_section.push("    ; Then-Branch\n");
+						for stmt in then_branch {
+							match &**stmt {
+								Expr::Print(inner) => {
+									match &**inner {
+										Expr::StringLiteral(s) => {
+											let label = string_labels.get(s).expect("String label not found");
+											
+											text_section.push_str(&format!("    ; Print: {}\n", s));
+											text_section.push_str("    mov rax, 1          ; sys_write\n");
+											text_section.push_str("    mov rdi, 1          ; stdout\n");
+											text_section.push_str(&format!("    mov rsi, {}\n", label));
+											text_section.push_str(&format!("    mov rdx, {}\n", s.len() + 1)); 
+											text_section.push_str("    syscall\n\n");
+										},
+									}
+								}
+							}
+						}
 					},
                     _ => {
                         // Handle complex expressions (including binary operations)
