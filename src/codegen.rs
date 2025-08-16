@@ -497,6 +497,41 @@ pub fn generate_nasm(exprs: &Vec<Expr>) -> String {
 											text_section.push_str("    add rsp, 8\n");
 											text_section.push_str("    pop rax\n\n");
 										},
+										Expr::Variable(name) => {
+											text_section.push_str(&format!("    ; Print variable: {}\n", name));
+											
+											if constants.contains_key(name) || variables.contains_key(name) {
+												text_section.push_str("    push rax\n");
+												
+												if constants.contains_key(name) {
+													let value = constants.get(name).unwrap();
+													match value {
+														ConstValue::Number(n) => {
+															text_section.push_str(&format!("    mov rax, {}\n", n));
+														},
+														_ => {
+															let var_label = get_var_label(name, None);
+															text_section.push_str("    mov rax, 1          ; sys_write\n");
+															text_section.push_str("    mov rdi, 1          ; stdout\n");
+															text_section.push_str(&format!("    mov rsi, {}\n", var_label));
+															text_section.push_str("    mov rdx, 30         ; Assume max 30 chars\n");
+															text_section.push_str("    syscall\n");
+															text_section.push_str("    pop rax\n");
+															continue;
+														}
+													}
+												} else {
+													text_section.push_str(&format!("    mov rax, [var_mem_{}]\n", name));
+												}
+												
+												text_section.push_str("    push rax\n");
+												text_section.push_str("    call print_number\n");
+												text_section.push_str("    add rsp, 8\n");
+												text_section.push_str("    pop rax\n\n");
+											} else {
+												panic!("Undefined variable: {}", name);
+											}
+										},
 									}
 								}
 							}
