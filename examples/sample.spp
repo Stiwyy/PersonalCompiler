@@ -1,98 +1,83 @@
-// SPP Language Feature Showcase
-// Created for: Stiwyy
-// Date: 2025-08-15
+// Test 1: Simple if statement with true condition
+let x = 10;
+if (x > 5) {
+    console.print("Test 1: Success - x is greater than 5");
+}
 
-// ---- Constants (immutable values) ----
-const USERNAME = "Stiwyy";
-const CURRENT_DATE = "2025-08-15";
-const CURRENT_TIME = "22:26:00";
+// Test 2: Simple if statement with false condition
+let y = 3;
+if (y > 5) {
+    console.print("Test 2: FAILURE - This should not print");
+}
 
-// Different data types
-const INTEGER_VALUE = 42;
-const FLOAT_VALUE = 3.14159;
-const BOOLEAN_TRUE = true;
-const BOOLEAN_FALSE = false;
-const NULL_VALUE = null;
+// Test 3: If-else statement with true condition
+let a = 7;
+if (a == 7) {
+    console.print("Test 3: Success - a equals 7");
+} else {
+    console.print("Test 3: FAILURE - This should not print");
+}
 
-// Array constants
-const NUMBERS = [1, 2, 3, 4, 5];
-const MIXED_ARRAY = [100, "string", true, null, [1, 2]];
+// Test 4: If-else statement with false condition
+let b = 12;
+if (b < 10) {
+    console.print("Test 4: FAILURE - This should not print");
+} else {
+    console.print("Test 4: Success - b is not less than 10");
+}
 
-// ---- Variables (mutable values) ----
-let counter = 0;
-let message = "Hello, World!";
-let pi_approximation = 3.14;
-let is_active = true;
+// Test 5: Nested if statements
+let value = 15;
+if (value > 10) {
+    console.print("Test 5.1: Success - value > 10");
+    if (value < 20) {
+        console.print("Test 5.2: Success - value < 20");
+    } else {
+        console.print("Test 5.2: FAILURE - This should not print");
+    }
+} else {
+    console.print("Test 5.1: FAILURE - This should not print");
+}
 
-// ---- String Operations ----
-// String concatenation
-console.print("Welcome, " + USERNAME + "!");
-console.print("Current Date and Time: " + CURRENT_DATE + " " + CURRENT_TIME);
+// Test 6: Variable assignment inside if statement
+let result = 0;
+if (value == 15) {
+    result = 100;
+    console.print("Test 6: Success - Inside if block");
+}
+console.print(result);  // Should print 100
 
-// String with mixed types
-console.print("The value of pi is approximately " + FLOAT_VALUE);
-console.print("Boolean values: " + BOOLEAN_TRUE + " and " + BOOLEAN_FALSE);
-console.print("Null value: " + NULL_VALUE);
+// Test 7: Deeply nested if statements
+let depth = 3;
+if (depth > 0) {
+    console.print("Depth 1");
+    if (depth > 1) {
+        console.print("Depth 2");
+        if (depth > 2) {
+            console.print("Depth 3");
+            if (depth > 3) {
+                console.print("FAILURE - Should not reach depth 4");
+            }
+        }
+    }
+}
 
-// ---- Arithmetic Operations ----
-// Basic math
-let sum = INTEGER_VALUE + 8;
-let difference = INTEGER_VALUE - 10;
-let product = INTEGER_VALUE * 2;
-let quotient = INTEGER_VALUE / 5;
-console.print("Basic math: " + sum + ", " + difference + ", " + product + ", " + quotient);
+// Test 8: If with boolean literal
+if (true) {
+    console.print("Test 8: Success - True condition works");
+}
 
-// Operations with variables
-counter = counter + 1;
-console.print("Counter: " + counter);
+// Test 9: Else-if pattern (by nesting an if in an else)
+let status = 2;
+if (status == 1) {
+    console.print("FAILURE - status is not 1");
+} else {
+    if (status == 2) {
+        console.print("Test 10: Success - status is 2");
+    } else {
+        console.print("FAILURE - status is not 2");
+    }
+}
 
-// Mixed type arithmetic
-let mixed_math = FLOAT_VALUE * INTEGER_VALUE;
-console.print("Mixed math (float * int): " + mixed_math);
-
-// ---- Comparison Operations ----
-let is_equal = INTEGER_VALUE == 42;
-let is_not_equal = INTEGER_VALUE != 100;
-let is_greater = INTEGER_VALUE > 30;
-let is_less = INTEGER_VALUE < 50;
-let is_greater_equal = INTEGER_VALUE >= 42;
-let is_less_equal = INTEGER_VALUE <= 42;
-
-console.print("Comparisons:");
-console.print("Equal: " + is_equal);
-console.print("Not equal: " + is_not_equal);
-console.print("Greater than: " + is_greater);
-console.print("Less than: " + is_less);
-console.print("Greater than or equal: " + is_greater_equal);
-console.print("Less than or equal: " + is_less_equal);
-
-// ---- Complex Expressions ----
-let complex = (INTEGER_VALUE * 2 + FLOAT_VALUE) > (sum / 2);
-console.print("Complex expression result: " + complex);
-
-// ---- Working with Arrays ----
-console.print("Number array: " + NUMBERS);
-console.print("Mixed array: " + MIXED_ARRAY);
-
-// ---- Variable Reassignment ----
-message = "Updated message: " + message;
-console.print(message);
-
-// ---- String operations with variables ----
-let greeting = "Hello";
-greeting = greeting + ", " + USERNAME + "!";
-console.print(greeting);
-
-// ---- Calculation Example ----
-let radius = 5;
-let area = pi_approximation * radius * radius;
-console.print("Area of circle with radius " + radius + " is: " + area);
-
-// Temperature conversion
-let celsius = 25;
-let fahrenheit = (celsius * 9 / 5) + 32;
-console.print(celsius + "°C is equal to " + fahrenheit + "°F");
-
-// ---- Exit with status code ----
-console.print("Program completed successfully.");
+console.print("All tests completed");
 exit(0);

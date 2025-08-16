@@ -1,3 +1,4 @@
+#[derive(Clone)]
 pub enum Expr {
     Number(i32),
     Float(f64),
@@ -32,7 +33,7 @@ pub enum Expr {
     },
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub enum BinOp {
     Add,
     Sub,
