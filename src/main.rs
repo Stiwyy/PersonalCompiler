@@ -83,6 +83,8 @@ fn main() {
             exprs.push(print_expr);
         } else if let Some(exit_expr) = parser.parse_exit_expr() {
             exprs.push(exit_expr);
+        } else if let Some(if_expr) = parser.parse_if_statement() {
+            exprs.push(if_expr);
         } else {
             panic!("No valid expression found at token position {}", parser.pos());
         }
