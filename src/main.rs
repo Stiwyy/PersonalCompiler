@@ -1,3 +1,4 @@
+
 use std::env;
 use std::path::Path;
 use std::process;
@@ -83,6 +84,8 @@ fn main() {
             exprs.push(print_expr);
         } else if let Some(exit_expr) = parser.parse_exit_expr() {
             exprs.push(exit_expr);
+        } else if let Some(if_expr) = parser.parse_if_statement() {
+            exprs.push(if_expr);
         } else {
             panic!("No valid expression found at token position {}", parser.pos());
         }
@@ -265,5 +268,29 @@ fn eval(expr: &Expr, constants: &mut HashMap<String, ConstValue>, variables: &mu
                 panic!("Error: Undefined identifier: {}", name);
             }
         },
+		Expr::If { condition, then_branch, else_branch } => {
+			let cond_result = eval(&**condition, constants, variables);
+			
+			let is_true = match cond_result {
+				ConstValue::Boolean(b) => b,
+				_ => panic!("Condition must be boolean"),
+			};
+			
+			if is_true {
+				let mut result = ConstValue::Null;
+				for stmt in then_branch {
+					result = eval(&**stmt, constants, variables);
+				}
+				result
+			} else if let Some(else_b) = else_branch {
+				let mut result = ConstValue::Null;
+				for stmt in else_b {
+					result = eval(&**stmt, constants, variables);
+				}
+				result
+			} else {
+				ConstValue::Null
+			}
+		}
     }
 }

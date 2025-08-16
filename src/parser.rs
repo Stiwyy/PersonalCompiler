@@ -580,4 +580,112 @@ impl Parser {
             _ => None
         }
     }
+
+	// If-Statements
+	pub fn parse_if_statement(&mut self) -> Option<Expr> {
+		// Check for "if"
+		if self.is_finished() || !matches!(&self.tokens[self.pos], Token::Identifier(id) if id == "if") {
+			return None;
+		}
+		self.pos += 1;
+		
+		// expect '('
+		if self.is_finished() || self.tokens[self.pos] != Token::LParen {
+			return None;
+		}
+		self.pos += 1;
+
+		// Parse condition
+		let condition = match self.parse_expression() {
+			Some(expr) => expr,
+			None => return None,
+		};
+		
+		// expect ')'
+		if self.is_finished() || self.tokens[self.pos] != Token::RParen {
+			return None;
+		}
+		self.pos += 1;
+
+		// expect '{'
+		if self.is_finished() || self.tokens[self.pos] != Token::LBrace {
+			return None;
+		}
+		self.pos += 1;
+
+		// Parse then-block
+		let mut then_statements = Vec::new();
+		while !self.is_finished() && self.tokens[self.pos] != Token::RBrace {
+			if let Some(stmt) = self.parse_statement() {
+				then_statements.push(Box::new(stmt));
+			} else {
+				return None; // Invalid statement in block
+			}
+		}
+
+		// expect '}'
+		if self.is_finished() || self.tokens[self.pos] != Token::RBrace {
+			return None;
+		}
+		self.pos += 1;
+
+		// Parse else-block
+		let mut else_statements = None;
+		if !self.is_finished() && matches!(&self.tokens[self.pos], Token::Identifier(id) if id == "else") {
+			self.pos += 1;
+
+			// expect '{'
+			if self.is_finished() || self.tokens[self.pos] != Token::LBrace {
+				return None;
+			}
+			self.pos += 1;
+			
+			let mut statements = Vec::new();
+			while !self.is_finished() && self.tokens[self.pos] != Token::RBrace {
+				if let Some(stmt) = self.parse_statement() {
+					statements.push(Box::new(stmt));
+				} else {
+					return None; // Invalid statement in block
+				}
+			}
+
+			// expect '}'
+			if self.is_finished() || self.tokens[self.pos] != Token::RBrace {
+				return None;
+			}
+			self.pos += 1;
+			
+			else_statements = Some(statements);
+		}
+		
+		Some(Expr::If {
+			condition: Box::new(condition),
+			then_branch: then_statements,
+			else_branch: else_statements,
+		})
+	}
+
+	// This helper method parses a single statement
+	pub fn parse_statement(&mut self) -> Option<Expr> {
+		if let Some(stmt) = self.parse_const_declaration() {
+			return Some(stmt);
+		}
+		if let Some(stmt) = self.parse_let_declaration() {
+			return Some(stmt);
+		}
+		if let Some(stmt) = self.parse_assignment() {
+			return Some(stmt);
+		}
+		if let Some(stmt) = self.parse_console_print_expr() {
+			return Some(stmt);
+		}
+		if let Some(stmt) = self.parse_exit_expr() {
+			return Some(stmt);
+		}
+		// Also if-statements could be nested
+		if let Some(stmt) = self.parse_if_statement() {
+			return Some(stmt);
+		}
+		None
+	}
 }

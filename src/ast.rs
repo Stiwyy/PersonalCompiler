@@ -1,3 +1,4 @@
+#[derive(Clone)]
 pub enum Expr {
     Number(i32),
     Float(f64),
@@ -15,19 +16,24 @@ pub enum Expr {
         name: String,
         value: Box<Expr>,
     },
-	Let {
-		name: String,
-		value: Box<Expr>,
-	},
-	Assign {
-		name: String,
-		value: Box<Expr>,
-	},
+    Let {
+        name: String,
+        value: Box<Expr>,
+    },
+    Assign {
+        name: String,
+        value: Box<Expr>,
+    },
     Variable(String),
     Null,
+    If {
+        condition: Box<Expr>,
+        then_branch: Vec<Box<Expr>>,
+        else_branch: Option<Vec<Box<Expr>>>,
+    },
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub enum BinOp {
     Add,
     Sub,
