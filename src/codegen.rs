@@ -488,6 +488,15 @@ pub fn generate_nasm(exprs: &Vec<Expr>) -> String {
 											text_section.push_str("    mov rdx, 5          ; 'null' + newline\n");
 											text_section.push_str("    syscall\n\n");
 										},
+										Expr::Number(n) => {
+											text_section.push_str(&format!("    ; Print number: {}\n", n));
+											text_section.push_str("    push rax\n");
+											text_section.push_str(&format!("    mov rax, {}\n", n));
+											text_section.push_str("    push rax\n");
+											text_section.push_str("    call print_number\n");
+											text_section.push_str("    add rsp, 8\n");
+											text_section.push_str("    pop rax\n\n");
+										},
 									}
 								}
 							}
