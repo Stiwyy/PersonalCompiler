@@ -610,6 +610,49 @@ pub fn generate_nasm(exprs: &Vec<Expr>) -> String {
 										}
 									}
 								},
+								Expr::Let { name, value } => {
+									if constants.contains_key(name) {
+										panic!("Cannot declare variable '{}', a constant with the same name already exists", name);
+									}
+									if variables.contains_key(name) {
+										panic!("Variable '{}' already defined", name);
+									}
+									
+									let var_value = evaluate_constant_expr(value, &constants, &variables);
+									
+									match var_value {
+										ConstValue::Number(n) => {
+											let var_label = get_var_label(name, None);
+											let value_str = n.to_string();
+											data_section.push_str(&format!("{} db \"{}\", 10, 0\n", var_label, value_str));
+											
+											variables.insert(name.clone(), ConstValue::Number(n));
+											text_section.push_str(&format!("    ; Variable {} = {}\n", name, n));
+											
+											bss_section.push_str(&format!("var_mem_{}: resq 1  ; Memory for variable {}\n", name, name));
+											text_section.push_str(&format!("    mov qword [var_mem_{}], {}\n", name, n));
+										},
+										_ => {
+											let var_label = get_var_label(name, None);
+											data_section.push_str(&format!("{} db \"[other type]\", 10, 0\n", var_label));
+											variables.insert(name.clone(), var_value.clone());
+											text_section.push_str(&format!("    ; Variable {} defined\n", name));
+											
+											bss_section.push_str(&format!("var_mem_{}: resq 1  ; Memory for variable {}\n", name, name));
+											match var_value {
+												ConstValue::Boolean(b) => {
+													text_section.push_str(&format!("    mov qword [var_mem_{}], {}\n", name, if b { 1 } else { 0 }));
+												},
+												ConstValue::Null => {
+													text_section.push_str(&format!("    mov qword [var_mem_{}], 0\n", name));
+												},
+												_ => {
+													text_section.push_str(&format!("    mov qword [var_mem_{}], 0\n", name));
+												}
+											}
+										}
+									}
+								},
 							}
 						}
 					},
