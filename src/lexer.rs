@@ -210,6 +210,14 @@ pub fn lex(source: &str) -> Vec<Token> {
                 chars.next();
                 tokens.push(Token::Comma);
             },
+			'{' => {
+				chars.next();
+				tokens.push(Token::LBrace);
+			},
+			'}' => {
+				chars.next();
+				tokens.push(Token::RBrace);
+			},
             
             // Skip any other characters (or handle them as errors)
             _ => {
