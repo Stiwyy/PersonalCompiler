@@ -579,6 +579,37 @@ pub fn generate_nasm(exprs: &Vec<Expr>) -> String {
 										text_section.push_str("    syscall\n\n");
 									}
 								},
+								Expr::Const { name, value } => {
+									if constants.contains_key(name) {
+										panic!("Constant '{}' already defined", name);
+									}
+									
+									let const_value = evaluate_constant_expr(value, &constants, &variables);
+									
+									match const_value {
+										ConstValue::Number(n) => {
+											let var_label = get_var_label(name, None);
+											let value_str = n.to_string();
+											data_section.push_str(&format!("{} db \"{}\", 10, 0\n", var_label, value_str));
+											
+											constants.insert(name.clone(), ConstValue::Number(n));
+											text_section.push_str(&format!("    ; Constant {} = {}\n", name, n));
+										},
+										ConstValue::String(s) => {
+											let var_label = get_var_label(name, None);
+											data_section.push_str(&format!("{} db \"{}\", 10, 0\n", var_label, s));
+											
+											constants.insert(name.clone(), ConstValue::String(s.clone()));
+											text_section.push_str(&format!("    ; Constant {} = \"{}\"\n", name, s));
+										},
+										_ => {
+											let var_label = get_var_label(name, None);
+											data_section.push_str(&format!("{} db \"[other type]\", 10, 0\n", var_label));
+											constants.insert(name.clone(), const_value);
+											text_section.push_str(&format!("    ; Constant {} defined\n", name));
+										}
+									}
+								},
 							}
 						}
 					},
