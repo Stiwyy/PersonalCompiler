@@ -480,6 +480,14 @@ pub fn generate_nasm(exprs: &Vec<Expr>) -> String {
 											}
 											text_section.push_str("    syscall\n\n");
 										},
+										Expr::Null => {
+											text_section.push_str("    ; Print null\n");
+											text_section.push_str("    mov rax, 1          ; sys_write\n");
+											text_section.push_str("    mov rdi, 1          ; stdout\n");
+											text_section.push_str("    mov rsi, null_str\n");
+											text_section.push_str("    mov rdx, 5          ; 'null' + newline\n");
+											text_section.push_str("    syscall\n\n");
+										},
 									}
 								}
 							}
