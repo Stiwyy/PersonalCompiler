@@ -542,7 +542,43 @@ pub fn generate_nasm(exprs: &Vec<Expr>) -> String {
 											text_section.push_str("    pop rax\n\n");
 										}
 									}
-								}
+								},
+								Expr::Exit(code) => {
+									if let Expr::Number(n) = &**code {
+										text_section.push_str("    ; Exit program\n");
+										text_section.push_str("    mov rax, 60         ; sys_exit\n");
+										text_section.push_str(&format!("    mov rdi, {}\n", n));
+										text_section.push_str("    syscall\n\n");
+									} else if let Expr::Variable(name) = &**code {
+										if constants.contains_key(name) || variables.contains_key(name) {
+											text_section.push_str(&format!("    ; Exit program with variable {}\n", name));
+											text_section.push_str("    mov rax, 60         ; sys_exit\n");
+											
+											if let Some(value) = constants.get(name) {
+												match value {
+													ConstValue::Number(n) => {
+														text_section.push_str(&format!("    mov rdi, {}\n", n));
+													},
+													_ => {
+														text_section.push_str("    mov rdi, 0      ; Non-numeric value defaults to 0\n");
+													}
+												}
+											} else if let Some(_) = variables.get(name) {
+												text_section.push_str(&format!("    mov rdi, [var_mem_{}]\n", name));
+											}
+											
+											text_section.push_str("    syscall\n\n");
+										} else {
+											panic!("Undefined variable in exit: {}", name);
+										}
+									} else {
+										text_section.push_str("    ; Exit program with expression result\n");
+										generate_expression_code(&**code, &mut text_section, &constants, &variables);
+										text_section.push_str("    mov rdi, rax        ; Move result to exit code\n");
+										text_section.push_str("    mov rax, 60         ; sys_exit\n");
+										text_section.push_str("    syscall\n\n");
+									}
+								},
 							}
 						}
 					},
