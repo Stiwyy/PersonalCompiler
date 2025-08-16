@@ -467,6 +467,19 @@ pub fn generate_nasm(exprs: &Vec<Expr>) -> String {
 											text_section.push_str(&format!("    mov rdx, {}\n", s.len() + 1)); 
 											text_section.push_str("    syscall\n\n");
 										},
+										Expr::Boolean(b) => {
+											text_section.push_str(&format!("    ; Print boolean: {}\n", b));
+											text_section.push_str("    mov rax, 1          ; sys_write\n");
+											text_section.push_str("    mov rdi, 1          ; stdout\n");
+											if *b {
+												text_section.push_str("    mov rsi, true_str\n");
+												text_section.push_str("    mov rdx, 5       ; 'true' + newline\n");
+											} else {
+												text_section.push_str("    mov rsi, false_str\n");
+												text_section.push_str("    mov rdx, 6       ; 'false' + newline\n");
+											}
+											text_section.push_str("    syscall\n\n");
+										},
 									}
 								}
 							}
