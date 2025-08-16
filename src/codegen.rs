@@ -532,6 +532,15 @@ pub fn generate_nasm(exprs: &Vec<Expr>) -> String {
 												panic!("Undefined variable: {}", name);
 											}
 										},
+										_ => {
+											text_section.push_str("    ; Print expression result\n");
+											text_section.push_str("    push rax\n");
+											generate_expression_code(&**inner, &mut text_section, &constants, &variables);
+											text_section.push_str("    push rax\n");
+											text_section.push_str("    call print_number\n");
+											text_section.push_str("    add rsp, 8\n");
+											text_section.push_str("    pop rax\n\n");
+										}
 									}
 								}
 							}
