@@ -435,6 +435,23 @@ pub fn generate_nasm(exprs: &Vec<Expr>) -> String {
                             text_section.push_str("    add rsp, 8\n\n");
                         }
                     },
+					Expr::If { condition, then_branch, else_branch } => {
+						let label_end = format!("if_end_{}", string_counter);
+						let label_else = format!("if_else_{}", string_counter);
+						string_counter += 1;
+						
+						text_section.push_str(&format!("    ; If-Statement (condition evaluation)\n"));
+						
+						generate_expression_code(&condition, &mut text_section, &constants, &variables);
+				
+						text_section.push_str("    test rax, rax\n");
+						
+						if else_branch.is_some() {
+							text_section.push_str(&format!("    jz {}\n", label_else));
+						} else {
+							text_section.push_str(&format!("    jz {}\n", label_end));
+						}
+					},
                     _ => {
                         // Handle complex expressions (including binary operations)
                         text_section.push_str("    ; Print expression result\n");
