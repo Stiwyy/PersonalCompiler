@@ -5,10 +5,8 @@
 
 echo "Creating SPP compiler package..."
 
-if [ ! -f "target/release/spp" ]; then
-    echo "Building SPP compiler..."
-    cargo build --release
-fi
+rm -rf spp_0.1.0
+rm -f spp_0.1.0.deb
 
 mkdir -p spp_0.1.0/DEBIAN
 mkdir -p spp_0.1.0/usr/bin
@@ -16,7 +14,13 @@ mkdir -p spp_0.1.0/usr/share/man/man1
 mkdir -p spp_0.1.0/usr/share/applications
 mkdir -p spp_0.1.0/usr/share/mime/packages
 
-cp target/release/spp spp_0.1.0/usr/bin/
+echo "Copying skibidipp binary to package..."
+cp target/release/skibidipp spp_0.1.0/usr/bin/spp
+if [ ! -f "spp_0.1.0/usr/bin/spp" ]; then
+    echo "Error: Failed to copy binary to package directory"
+    exit 1
+fi
+chmod 755 spp_0.1.0/usr/bin/spp
 
 cat > spp_0.1.0/DEBIAN/control << EOF
 Package: spp
@@ -25,7 +29,7 @@ Section: development
 Priority: optional
 Architecture: amd64
 Depends: nasm (>= 2.13), binutils
-Maintainer: Stiwyy <Stiwyy@users.noreply.github.com>
+Maintainer: Stiwyy
 Description: SPP Programming Language Compiler
  A compiler for the SPP programming language.
  Compiles .spp files to native executables via NASM.
@@ -35,7 +39,7 @@ cat > spp_0.1.0/usr/bin/spp-new << EOF
 #!/bin/bash
 # Create a new SPP source file
 # Created by: Stiwyy
-# Date: 2025-08-17 12:05:09
+# Date: 17-08-2025
 
 if [ -z "\$1" ]; then
     echo "Usage: spp-new <filename.spp>"
@@ -76,8 +80,13 @@ cat > spp_0.1.0/DEBIAN/postinst << EOF
 set -e
 
 # Make sure the executables are properly set
-chmod 755 /usr/bin/spp
-chmod 755 /usr/bin/spp-new
+if [ -f /usr/bin/spp ]; then
+    chmod 755 /usr/bin/spp
+fi
+
+if [ -f /usr/bin/spp-new ]; then
+    chmod 755 /usr/bin/spp-new
+fi
 
 # Update MIME database
 if command -v update-mime-database >/dev/null; then
@@ -133,7 +142,7 @@ Compile with custom output name:
 Run the compiled program:
 .B ./program
 .SH AUTHOR
-Stiwyy <your.email@example.com>
+Stiwyy
 EOF
 
 dpkg-deb --build spp_0.1.0

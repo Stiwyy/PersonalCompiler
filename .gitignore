@@ -4,3 +4,5 @@ Cargo.lock
 *.rs.bk
 .idea/
 examples/test.spp
+*.deb
+/spp_*/
