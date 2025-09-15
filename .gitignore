@@ -6,3 +6,5 @@ Cargo.lock
 examples/test.spp
 *.deb
 /spp_*/
+/spp-*/
+/rpmbuild/
